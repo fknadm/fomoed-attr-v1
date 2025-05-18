@@ -201,6 +201,8 @@ async function main() {
       clicks: 2500,
       conversions: 500,
       engagement: '5.0',
+      postUrl: 'https://twitter.com/creator1/status/123456789',
+      platform: 'twitter',
       createdAt: new Date(),
       updatedAt: new Date()
     },
@@ -212,6 +214,8 @@ async function main() {
       clicks: 1500,
       conversions: 300,
       engagement: '4.8',
+      postUrl: 'https://twitter.com/creator2/status/987654321',
+      platform: 'twitter',
       createdAt: new Date(),
       updatedAt: new Date()
     }

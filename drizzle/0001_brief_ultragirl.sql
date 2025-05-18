@@ -1,0 +1,1 @@
+ALTER TABLE `campaign_metrics` ADD `post_url` text;

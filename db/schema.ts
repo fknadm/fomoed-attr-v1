@@ -141,6 +141,8 @@ export const campaignMetrics = sqliteTable('campaign_metrics', {
   clicks: integer('clicks').default(0),
   conversions: integer('conversions').default(0),
   engagement: text('engagement').default('0'), // Using text for precise decimal handling
+  postUrl: text('post_url'), // URL to the social media post
+  platform: text('platform', { enum: ['twitter', 'instagram', 'youtube', 'tiktok', 'discord', 'other'] }), // Platform of the post
   createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
 })

@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { campaigns } from '@/db/schema'
 import { eq } from 'drizzle-orm'
@@ -16,14 +16,25 @@ const logResponse = (status: number, data: any) => {
   console.log(`📬 Response [${status}]:`, data)
 }
 
+// Validate campaign ID
+const validateCampaignId = (id: string | undefined): string => {
+  if (!id || typeof id !== 'string') {
+    throw new Error('Invalid campaign ID')
+  }
+  return id
+}
+
 export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
     const db = getDb()
+    const params = await context.params
+    const { id } = params
+    
     const campaign = await db.query.campaigns.findFirst({
-      where: (campaigns, { eq }) => eq(campaigns.id, params.id),
+      where: (campaigns, { eq }) => eq(campaigns.id, id),
       with: {
         project: true,
         requirements: true,
@@ -60,10 +71,12 @@ export async function GET(
 }
 
 export async function PUT(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
+    const params = await context.params
+    const { id } = params
     const body = await request.json()
     const db = getDb()
     
@@ -77,10 +90,10 @@ export async function PUT(
         status: body.status,
         updatedAt: new Date(),
       })
-      .where(eq(campaigns.id, params.id))
+      .where(eq(campaigns.id, id))
 
     const campaign = await db.query.campaigns.findFirst({
-      where: (campaigns, { eq }) => eq(campaigns.id, params.id),
+      where: (campaigns, { eq }) => eq(campaigns.id, id),
       with: {
         project: true,
         requirements: true,
@@ -109,14 +122,16 @@ export async function PUT(
 }
 
 export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
+    const params = await context.params
+    const { id } = params
     const db = getDb()
     
     await db.delete(campaigns)
-      .where(eq(campaigns.id, params.id))
+      .where(eq(campaigns.id, id))
     
     logResponse(200, { message: 'Campaign deleted successfully' })
     return new NextResponse(null, { status: 204 })
