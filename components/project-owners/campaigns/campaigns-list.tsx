@@ -71,7 +71,7 @@ export async function CampaignsList() {
         <div className="mx-auto flex max-w-[420px] flex-col items-center justify-center text-center">
           <h3 className="mb-2 text-lg font-semibold">No campaigns</h3>
           <p className="mb-4 text-sm text-muted-foreground">
-            You haven't created any campaigns yet. Start creating your first campaign.
+            You haven&apos;t created any campaigns yet. Start creating your first campaign.
           </p>
           <Link
             href="/project-owners/campaigns/new"

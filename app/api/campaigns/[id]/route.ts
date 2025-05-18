@@ -4,11 +4,8 @@ import { campaigns } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 
 // Logger middleware
-const logRequest = (method: string, path: string, body?: any) => {
-  console.log(`📡 ${method} ${path}`)
-  if (body) {
-    console.log('📦 Request Body:', body)
-  }
+const logRequest = async (req: NextRequest) => {
+  console.log(`📡 [${req.method}] ${req.url}`)
 }
 
 // Response logger
@@ -17,20 +14,16 @@ const logResponse = (status: number, data: any) => {
 }
 
 // Validate campaign ID
-const validateCampaignId = (id: string | undefined): string => {
-  if (!id || typeof id !== 'string') {
-    throw new Error('Invalid campaign ID')
-  }
-  return id
+const validateCampaignId = (id: string): boolean => {
+  return Boolean(id) && typeof id === 'string' && id.length > 0
 }
 
 export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> | { id: string } }
+  req: NextRequest,
+  { params }: { params: { id: string } }
 ) {
   try {
     const db = getDb()
-    const params = await context.params
     const { id } = params
     
     const campaign = await db.query.campaigns.findFirst({

@@ -6,6 +6,7 @@ import { formatCurrency, formatNumber } from "@/lib/format"
 import { calculateCampaignPerformance } from '@/lib/metrics'
 import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
+import Image from 'next/image'
 
 interface CampaignApplication {
   id: string
@@ -481,9 +482,11 @@ export default async function CampaignDetailsPage(props: PageProps) {
                             index === 2 ? 'bg-gradient-to-br from-amber-700 via-amber-800 to-amber-900 animate-pulse' :
                             'bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 animate-pulse'}`}
                         />
-                        <img
+                        <Image
                           src={application.creator.user.avatar || `https://api.dicebear.com/7.x/shapes/svg?seed=${application.creator.user.username}`}
                           alt={application.creator.user.username}
+                          width={48}
+                          height={48}
                           className="absolute inset-[2px] rounded-full object-cover bg-black"
                         />
                       </div>

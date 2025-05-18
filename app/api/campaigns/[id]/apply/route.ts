@@ -1,14 +1,16 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { campaignApplications } from '@/db/schema'
 import { nanoid } from 'nanoid'
-import { and, eq } from 'drizzle-orm'
+// import { and, eq } from '@planetscale/database'
+import { eq } from 'drizzle-orm'
 
 export async function POST(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { id: string } }
-) {
+): Promise<NextResponse> {
   try {
+    const { id } = params
     const body = await request.json()
     const db = getDb()
     
@@ -18,7 +20,7 @@ export async function POST(
     // Check if creator has already applied
     const existingApplication = await db.query.campaignApplications.findFirst({
       where: (apps, { and, eq }) => and(
-        eq(apps.campaignId, params.id),
+        eq(apps.campaignId, id),
         eq(apps.creatorId, creatorId)
       ),
     })
@@ -33,7 +35,7 @@ export async function POST(
     // Create application
     await db.insert(campaignApplications).values({
       id: nanoid(),
-      campaignId: params.id,
+      campaignId: id,
       creatorId: creatorId,
       status: 'pending',
       proposal: body.message,
@@ -44,7 +46,7 @@ export async function POST(
 
     const newApplication = await db.query.campaignApplications.findFirst({
       where: (apps, { and, eq }) => and(
-        eq(apps.campaignId, params.id),
+        eq(apps.campaignId, id),
         eq(apps.creatorId, creatorId)
       ),
       with: {
