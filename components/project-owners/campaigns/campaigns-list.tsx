@@ -52,12 +52,28 @@ async function getCampaigns() {
   })
 
   if (!res.ok) {
-    const error = await res.json()
-    console.error('❌ Failed to fetch campaigns:', error)
-    throw new Error(error.message || 'Failed to fetch campaigns')
+    let errorData
+    try {
+      errorData = await res.json()
+    } catch (e) {
+      // If we can't parse JSON, it might be HTML
+      const text = await res.text()
+      console.error('❌ Received non-JSON response:', text.substring(0, 200))
+      throw new Error('Received invalid response format from server')
+    }
+    
+    console.error('❌ Failed to fetch campaigns:', errorData)
+    throw new Error(errorData.error || errorData.message || 'Failed to fetch campaigns')
   }
 
-  const data = await res.json()
+  let data
+  try {
+    data = await res.json()
+  } catch (e) {
+    console.error('❌ Failed to parse response as JSON:', e)
+    throw new Error('Invalid JSON response from server')
+  }
+
   console.log('✅ Fetched campaigns:', data)
   return data
 }

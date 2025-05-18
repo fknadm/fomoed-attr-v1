@@ -20,14 +20,27 @@ const logResponse = (status: number, data: any) => {
 
 export async function GET(request: Request) {
   try {
-    // Log environment variables (without sensitive data)
-    console.log('🔑 Environment check:', {
+    // Log environment check
+    const envCheck = {
       hasDbUrl: !!process.env.TURSO_DATABASE_URL,
       hasAuthToken: !!process.env.TURSO_AUTH_TOKEN,
-      dbUrlPrefix: process.env.TURSO_DATABASE_URL?.substring(0, 20) + '...',
-      dbName: process.env.TURSO_DATABASE_URL?.split('/').pop(),
-      authTokenLength: process.env.TURSO_AUTH_TOKEN?.length
-    })
+      nodeEnv: process.env.NODE_ENV,
+      vercelEnv: process.env.VERCEL_ENV
+    }
+    console.log('🔑 Environment check:', envCheck)
+
+    // If missing required env vars, return error immediately
+    if (!process.env.TURSO_DATABASE_URL || !process.env.TURSO_AUTH_TOKEN) {
+      console.error('❌ Missing required environment variables')
+      return NextResponse.json(
+        { 
+          error: 'Database configuration error',
+          details: 'Missing required environment variables',
+          env: envCheck 
+        },
+        { status: 500 }
+      )
+    }
 
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status') as 'draft' | 'active' | 'completed' | 'cancelled' | null
@@ -39,28 +52,16 @@ export async function GET(request: Request) {
     try {
       db = getDb()
       console.log('✅ Database client created successfully')
-      
-      // Test the connection
-      const client = (db as any).$client
-      const testResult = await client.execute('SELECT 1')
-      console.log('✅ Database connection test:', testResult)
-      
     } catch (dbError) {
       console.error('❌ Failed to create database client:', dbError)
-      throw dbError
-    }
-    
-    // First try a simple query to test connection
-    try {
-      const campaignCount = await db.select({ count: sql`count(*)` }).from(campaigns)
-      console.log('📊 Total campaigns in database:', campaignCount)
-      
-      // Add direct SQL query
-      const rawCampaigns = await (db as any).$client.execute('SELECT * FROM campaigns')
-      console.log('📝 Raw campaigns data:', rawCampaigns)
-    } catch (countError) {
-      console.error('❌ Failed to count campaigns:', countError)
-      throw countError
+      return NextResponse.json(
+        { 
+          error: 'Database connection error',
+          details: dbError instanceof Error ? dbError.message : 'Unknown error',
+          env: envCheck
+        },
+        { status: 500 }
+      )
     }
     
     let allCampaigns
@@ -80,35 +81,29 @@ export async function GET(request: Request) {
             },
           },
         },
+        where: status ? eq(campaigns.status, status) : undefined
       })
       
-      console.log('🔎 Raw query results:', JSON.stringify(allCampaigns, null, 2))
+      console.log('✅ Query executed successfully, found campaigns:', allCampaigns.length)
     } catch (queryError) {
       console.error('❌ Failed to fetch campaigns:', queryError)
-      throw queryError
+      return NextResponse.json(
+        { 
+          error: 'Database query error',
+          details: queryError instanceof Error ? queryError.message : 'Unknown error',
+          env: envCheck
+        },
+        { status: 500 }
+      )
     }
     
-    console.log('✅ Query executed successfully, found campaigns:', allCampaigns.length)
-    console.log('📝 Campaign details:', allCampaigns)
-    
-    logResponse(200, { count: allCampaigns.length })
     return NextResponse.json(allCampaigns)
   } catch (error) {
-    console.error('❌ Error fetching campaigns:', error)
-    const errorMessage = error instanceof Error 
-      ? error.message
-      : 'An unexpected error occurred while fetching campaigns'
-    
-    // Log the full error stack trace in development
-    if (process.env.NODE_ENV === 'development') {
-      console.error('Full error details:', error)
-    }
-    
-    logResponse(500, { error: errorMessage })
+    console.error('❌ Unexpected error:', error)
     return NextResponse.json(
       { 
-        error: errorMessage,
-        details: process.env.NODE_ENV === 'development' ? String(error) : undefined
+        error: 'Internal server error',
+        details: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
     )
