@@ -51,31 +51,31 @@ async function getCampaigns() {
     cache: 'no-store',
   })
 
+  // Read the response body text once
+  const responseText = await res.text()
+  
   if (!res.ok) {
-    let errorData
+    // Try to parse as JSON first
     try {
-      errorData = await res.json()
+      const errorData = JSON.parse(responseText)
+      console.error('❌ Failed to fetch campaigns:', errorData)
+      throw new Error(errorData.error || errorData.message || 'Failed to fetch campaigns')
     } catch (e) {
-      // If we can't parse JSON, it might be HTML
-      const text = await res.text()
-      console.error('❌ Received non-JSON response:', text.substring(0, 200))
+      // If JSON parsing fails, it might be HTML
+      console.error('❌ Received non-JSON response:', responseText.substring(0, 200))
       throw new Error('Received invalid response format from server')
     }
-    
-    console.error('❌ Failed to fetch campaigns:', errorData)
-    throw new Error(errorData.error || errorData.message || 'Failed to fetch campaigns')
   }
 
-  let data
+  // Try to parse the successful response as JSON
   try {
-    data = await res.json()
+    const data = JSON.parse(responseText)
+    console.log('✅ Fetched campaigns:', data)
+    return data
   } catch (e) {
     console.error('❌ Failed to parse response as JSON:', e)
     throw new Error('Invalid JSON response from server')
   }
-
-  console.log('✅ Fetched campaigns:', data)
-  return data
 }
 
 export async function CampaignsList() {
