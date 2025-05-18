@@ -1,103 +1,106 @@
-import Image from "next/image";
+import { GradientButton } from "@/components/ui/gradient-button"
+import { ArrowRight, Users2, Crown } from "@/components/ui/icons"
+import { MotionDiv, MotionH1, MotionH2, MotionP } from "@/components/ui/motion"
+import { Navbar } from "@/components/ui/navbar"
+import Link from "next/link"
 
 export default function Home() {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="relative flex min-h-screen flex-col bg-[#0A0A0A]">
+      <div className="animated-gradient-bg" />
+      <Navbar />
+      <main className="relative flex-1">
+        <section className="relative space-y-8 py-12 md:py-16 lg:py-20">
+          <div className="container relative flex max-w-[1200px] mx-auto flex-col items-center">
+            <MotionDiv
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="space-y-4 text-center"
+            >
+              <h1 className="text-3xl font-bold leading-tight tracking-tighter md:text-5xl lg:text-6xl">
+                <span className="text-gradient-primary">Everything</span>
+                <br />
+                <span className="text-white">You Need</span>
+              </h1>
+              <p className="mx-auto max-w-[700px] text-muted-foreground sm:text-lg">
+                Our platform is designed for everyone in the Web3 ecosystem. Select your role to
+                discover how Fomoed can help you succeed.
+              </p>
+            </MotionDiv>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
+            <MotionDiv
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="w-full max-w-[1000px] mt-12"
+            >
+              <div className="grid gap-6 md:grid-cols-2">
+                <Link 
+                  href="/project-owners"
+                  className="group rounded-xl bg-[#0A0A0A]/40 border-[#2A2625] border p-6 transition-all hover:border-[#C85627]/50 backdrop-blur-sm"
+                >
+                  <div className="flex flex-col space-y-4">
+                    <div className="flex items-center space-x-4">
+                      <Users2 className="h-8 w-8 text-[#C85627]" />
+                      <h3 className="font-semibold text-xl text-white">Project Owners & Community Managers</h3>
+                    </div>
+                    <p className="text-muted-foreground">
+                      Track, analyze, and optimize your community growth with powerful attribution tools.
+                    </p>
+                    <div className="pt-4">
+                      <GradientButton size="lg" className="w-full">
+                        Launch Campaign
+                        <ArrowRight className="ml-2 h-5 w-5" />
+                      </GradientButton>
+                    </div>
+                  </div>
+                </Link>
+
+                <Link 
+                  href="/creators"
+                  className="group rounded-xl bg-[#0A0A0A]/40 border-[#2A2625] border p-6 transition-all hover:border-[#C85627]/50 backdrop-blur-sm"
+                >
+                  <div className="flex flex-col space-y-4">
+                    <div className="flex items-center space-x-4">
+                      <Crown className="h-8 w-8 text-[#C85627]" />
+                      <h3 className="font-semibold text-xl text-white">KOLs & Creators</h3>
+                    </div>
+                    <p className="text-muted-foreground">
+                      Monetize your influence and track your impact across Web3 projects.
+                    </p>
+                    <div className="pt-4">
+                      <GradientButton size="lg" className="w-full">
+                        Creator Dashboard
+                        <ArrowRight className="ml-2 h-5 w-5" />
+                      </GradientButton>
+                    </div>
+                  </div>
+                </Link>
+              </div>
+            </MotionDiv>
+          </div>
+        </section>
+
+        <section className="relative border-t border-[#2A2625] bg-gradient-card">
+          <div className="container py-12 md:py-16 lg:py-20">
+            <MotionDiv
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+              className="mx-auto max-w-[800px] text-center space-y-4"
+            >
+              <h2 className="text-2xl font-bold leading-tight tracking-tighter md:text-4xl text-white">
+                Who is{" "}
+                <span className="text-gradient-primary">Fomoed For?</span>
+              </h2>
+              <p className="text-muted-foreground">
+                Join the ecosystem of innovative projects leveraging Fomoed for precise attribution and community growth.
+              </p>
+            </MotionDiv>
+          </div>
+        </section>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
-  );
+  )
 }

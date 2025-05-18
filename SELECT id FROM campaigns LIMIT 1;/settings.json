@@ -1,0 +1,3 @@
+{
+  "config-path": "SELECT id FROM campaigns LIMIT 1;"
+}
