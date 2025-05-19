@@ -18,20 +18,39 @@ const logResponse = (status: number, data: any) => {
   console.log(`📬 Response [${status}]:`, data)
 }
 
+// Enhanced error logger
+const logError = (stage: string, error: any, context?: any) => {
+  console.error(`❌ Error during ${stage}:`, {
+    message: error?.message,
+    name: error?.name,
+    stack: error?.stack,
+    context,
+  })
+}
+
 export async function GET(request: Request) {
   try {
+    // Log request details
+    const url = new URL(request.url)
+    console.log('📥 Incoming request:', {
+      url: url.toString(),
+      method: request.method,
+      headers: Object.fromEntries(request.headers.entries())
+    })
+
     // Log environment check
     const envCheck = {
       hasDbUrl: !!process.env.TURSO_DATABASE_URL,
       hasAuthToken: !!process.env.TURSO_AUTH_TOKEN,
       nodeEnv: process.env.NODE_ENV,
-      vercelEnv: process.env.VERCEL_ENV
+      vercelEnv: process.env.VERCEL_ENV,
+      baseUrl: process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
     }
     console.log('🔑 Environment check:', envCheck)
 
     // If missing required env vars, return error immediately
     if (!process.env.TURSO_DATABASE_URL || !process.env.TURSO_AUTH_TOKEN) {
-      console.error('❌ Missing required environment variables')
+      logError('environment check', new Error('Missing environment variables'), envCheck)
       return NextResponse.json(
         { 
           error: 'Database configuration error',
@@ -52,8 +71,12 @@ export async function GET(request: Request) {
     try {
       db = getDb()
       console.log('✅ Database client created successfully')
+
+      // Test database connection
+      const testResult = await db.select({ count: sql`count(*)` }).from(campaigns)
+      console.log('✅ Database connection test successful:', testResult)
     } catch (dbError) {
-      console.error('❌ Failed to create database client:', dbError)
+      logError('database connection', dbError, { envCheck })
       return NextResponse.json(
         { 
           error: 'Database connection error',
@@ -66,6 +89,26 @@ export async function GET(request: Request) {
     
     let allCampaigns
     try {
+      // Log the query we're about to execute
+      console.log('🔍 Executing query with params:', {
+        status,
+        projectId,
+        withRelations: {
+          project: true,
+          requirements: true,
+          applications: {
+            with: {
+              creator: {
+                with: {
+                  user: true,
+                },
+              },
+              metrics: true,
+            },
+          },
+        }
+      })
+
       allCampaigns = await db.query.campaigns.findMany({
         with: {
           project: true,
@@ -84,9 +127,12 @@ export async function GET(request: Request) {
         where: status ? eq(campaigns.status, status) : undefined
       })
       
-      console.log('✅ Query executed successfully, found campaigns:', allCampaigns.length)
+      console.log('✅ Query executed successfully, found campaigns:', {
+        count: allCampaigns.length,
+        campaignIds: allCampaigns.map(c => c.id)
+      })
     } catch (queryError) {
-      console.error('❌ Failed to fetch campaigns:', queryError)
+      logError('database query', queryError, { status, projectId })
       return NextResponse.json(
         { 
           error: 'Database query error',
@@ -97,9 +143,15 @@ export async function GET(request: Request) {
       )
     }
     
+    // Log successful response
+    console.log('✅ Sending successful response with campaigns:', {
+      count: allCampaigns.length,
+      firstCampaignId: allCampaigns[0]?.id
+    })
+
     return NextResponse.json(allCampaigns)
   } catch (error) {
-    console.error('❌ Unexpected error:', error)
+    logError('unexpected error', error)
     return NextResponse.json(
       { 
         error: 'Internal server error',

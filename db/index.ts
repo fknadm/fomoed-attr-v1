@@ -4,8 +4,8 @@ import * as schema from './schema'
 
 // Create Turso client with provided credentials
 const client = createClient({
-  url: 'libsql://fomoed-attr-fknadm.aws-ap-northeast-1.turso.io',
-  authToken: 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3NDc1OTE2MDcsImlkIjoiYmMyMDFlYzYtNWI5OS00YmQyLWI4ZTktOTlhYjc4OTVhNTY5IiwicmlkIjoiOTczZTBjNWQtYTVkZS00ZGVhLTliNDktMzU4NDYwYjY3ZmM3In0.wRjd2J76CTdfgvlDkOMr1wwuXX4RrQq7cbU7-g1-OEQo4m67Qraauus3Zc8PRuAkBxSdoiCJx8WF2d4vqnG_AA',
+  url: process.env.TURSO_DATABASE_URL!,
+  authToken: process.env.TURSO_AUTH_TOKEN,
 })
 
 // Add query logging in development

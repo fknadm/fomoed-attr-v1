@@ -79,62 +79,83 @@ async function getCampaigns() {
 }
 
 export async function CampaignsList() {
-  const campaigns = await getCampaigns()
+  try {
+    const campaigns = await getCampaigns()
 
-  if (!campaigns?.length) {
+    if (!campaigns?.length) {
+      return (
+        <div className="flex min-h-[400px] flex-col items-center justify-center rounded-md border border-dashed p-8 text-center animate-in fade-in-50">
+          <div className="mx-auto flex max-w-[420px] flex-col items-center justify-center text-center">
+            <h3 className="mb-2 text-lg font-semibold">No campaigns</h3>
+            <p className="mb-4 text-sm text-muted-foreground">
+              You haven&apos;t created any campaigns yet. Start creating your first campaign.
+            </p>
+            <Link
+              href="/project-owners/campaigns/new"
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              Create a campaign
+            </Link>
+          </div>
+        </div>
+      )
+    }
+
     return (
-      <div className="flex min-h-[400px] flex-col items-center justify-center rounded-md border border-dashed p-8 text-center animate-in fade-in-50">
+      <div className="grid gap-6">
+        {campaigns.map((campaign: Campaign) => {
+          const metrics = {
+            impressions: campaign.metrics?.reduce((sum, m) => sum + m.impressions, 0) || 0,
+            clicks: campaign.metrics?.reduce((sum, m) => sum + m.clicks, 0) || 0,
+            conversions: campaign.metrics?.reduce((sum, m) => sum + m.conversions, 0) || 0,
+            engagement: campaign.metrics?.reduce((sum, m) => sum + parseFloat(m.engagement), 0) / (campaign.metrics?.length || 1) || 0,
+            get ctr() {
+              return this.impressions > 0 ? (this.clicks / this.impressions) * 100 : 0
+            },
+            get conversionRate() {
+              return this.clicks > 0 ? (this.conversions / this.clicks) * 100 : 0
+            },
+            get cpc() {
+              return this.clicks > 0 ? parseFloat(campaign.budget) / this.clicks : 0
+            },
+          }
+          
+          return (
+            <CampaignCard
+              key={campaign.id}
+              id={campaign.id}
+              name={campaign.name}
+              status={campaign.status}
+              budget={campaign.budget}
+              startDate={campaign.startDate}
+              endDate={campaign.endDate}
+              projectName={campaign.project.name}
+              metrics={metrics}
+              platforms={campaign.requirements.requiredPlatforms}
+              applicationsCount={campaign.applications.length}
+            />
+          )
+        })}
+      </div>
+    )
+  } catch (error) {
+    console.error('Error in CampaignsList:', error)
+    
+    return (
+      <div className="flex min-h-[400px] flex-col items-center justify-center rounded-md border border-dashed border-destructive p-8 text-center animate-in fade-in-50">
         <div className="mx-auto flex max-w-[420px] flex-col items-center justify-center text-center">
-          <h3 className="mb-2 text-lg font-semibold">No campaigns</h3>
+          <h3 className="mb-2 text-lg font-semibold text-destructive">Error Loading Campaigns</h3>
           <p className="mb-4 text-sm text-muted-foreground">
-            You haven&apos;t created any campaigns yet. Start creating your first campaign.
+            {error instanceof Error ? error.message : 'An unexpected error occurred while loading campaigns.'}
           </p>
           <Link
-            href="/project-owners/campaigns/new"
+            href="/project-owners"
             className="text-sm font-medium text-primary hover:underline"
           >
-            Create a campaign
+            Try again
           </Link>
         </div>
       </div>
     )
   }
-
-  return (
-    <div className="grid gap-6">
-      {campaigns.map((campaign: Campaign) => {
-        const metrics = {
-          impressions: campaign.metrics?.reduce((sum, m) => sum + m.impressions, 0) || 0,
-          clicks: campaign.metrics?.reduce((sum, m) => sum + m.clicks, 0) || 0,
-          conversions: campaign.metrics?.reduce((sum, m) => sum + m.conversions, 0) || 0,
-          engagement: campaign.metrics?.reduce((sum, m) => sum + parseFloat(m.engagement), 0) / (campaign.metrics?.length || 1) || 0,
-          get ctr() {
-            return this.impressions > 0 ? (this.clicks / this.impressions) * 100 : 0
-          },
-          get conversionRate() {
-            return this.clicks > 0 ? (this.conversions / this.clicks) * 100 : 0
-          },
-          get cpc() {
-            return this.clicks > 0 ? parseFloat(campaign.budget) / this.clicks : 0
-          },
-        }
-        
-        return (
-          <CampaignCard
-            key={campaign.id}
-            id={campaign.id}
-            name={campaign.name}
-            status={campaign.status}
-            budget={campaign.budget}
-            startDate={campaign.startDate}
-            endDate={campaign.endDate}
-            projectName={campaign.project.name}
-            metrics={metrics}
-            platforms={campaign.requirements.requiredPlatforms}
-            applicationsCount={campaign.applications.length}
-          />
-        )
-      })}
-    </div>
-  )
 } 
