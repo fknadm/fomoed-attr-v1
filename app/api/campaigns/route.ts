@@ -70,46 +70,13 @@ export async function GET(request: Request) {
     let db
     try {
       db = getDb()
-      console.log('✅ Database client created successfully')
-
-      // Test database connection
+      
+      // Test database connection with a simple query first
       const testResult = await db.select({ count: sql`count(*)` }).from(campaigns)
       console.log('✅ Database connection test successful:', testResult)
-    } catch (dbError) {
-      logError('database connection', dbError, { envCheck })
-      return NextResponse.json(
-        { 
-          error: 'Database connection error',
-          details: dbError instanceof Error ? dbError.message : 'Unknown error',
-          env: envCheck
-        },
-        { status: 500 }
-      )
-    }
-    
-    let allCampaigns
-    try {
-      // Log the query we're about to execute
-      console.log('🔍 Executing query with params:', {
-        status,
-        projectId,
-        withRelations: {
-          project: true,
-          requirements: true,
-          applications: {
-            with: {
-              creator: {
-                with: {
-                  user: true,
-                },
-              },
-              metrics: true,
-            },
-          },
-        }
-      })
-
-      allCampaigns = await db.query.campaigns.findMany({
+      
+      // Now execute the main query
+      const allCampaigns = await db.query.campaigns.findMany({
         with: {
           project: true,
           requirements: true,
@@ -131,25 +98,19 @@ export async function GET(request: Request) {
         count: allCampaigns.length,
         campaignIds: allCampaigns.map(c => c.id)
       })
-    } catch (queryError) {
-      logError('database query', queryError, { status, projectId })
+
+      return NextResponse.json(allCampaigns)
+    } catch (error) {
+      logError('database operation', error, { status, projectId })
       return NextResponse.json(
         { 
-          error: 'Database query error',
-          details: queryError instanceof Error ? queryError.message : 'Unknown error',
+          error: 'Database operation failed',
+          details: error instanceof Error ? error.message : 'Unknown error',
           env: envCheck
         },
         { status: 500 }
       )
     }
-    
-    // Log successful response
-    console.log('✅ Sending successful response with campaigns:', {
-      count: allCampaigns.length,
-      firstCampaignId: allCampaigns[0]?.id
-    })
-
-    return NextResponse.json(allCampaigns)
   } catch (error) {
     logError('unexpected error', error)
     return NextResponse.json(
@@ -190,7 +151,7 @@ export async function POST(request: Request) {
     
     return NextResponse.json(campaign, { status: 201 })
   } catch (error) {
-    console.error('Error creating campaign:', error)
+    logError('campaign creation', error)
     return NextResponse.json(
       { error: 'Failed to create campaign' },
       { status: 500 }
