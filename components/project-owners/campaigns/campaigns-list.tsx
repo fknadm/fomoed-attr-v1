@@ -2,6 +2,8 @@ import * as React from "react"
 import Link from "next/link"
 import { getBaseUrl } from "@/lib/utils"
 import { CampaignCard } from "./campaign-card"
+import { getDb } from "@/lib/db"
+import { campaigns } from "@/db/schema"
 
 interface Campaign {
   id: string
@@ -9,24 +11,21 @@ interface Campaign {
   description: string
   status: string
   budget: string
-  startDate: string
-  endDate: string
+  startDate: Date
+  endDate: Date
+  projectId: string
+  createdAt: Date
+  updatedAt: Date
   project: {
     id: string
     name: string
   }
-  metrics: {
-    impressions: number
-    clicks: number
-    conversions: number
-    engagement: string
-  }[]
   requirements: {
     minFollowers: number
-    requiredPlatforms: string[]
+    requiredPlatforms: string
     contentType: string
-    deliverables: string[]
-  }
+    deliverables: string
+  } | null
   applications: {
     id: string
     status: string
@@ -35,47 +34,39 @@ interface Campaign {
         username: string
       }
     }
+    metrics: {
+      impressions: number | null
+      clicks: number | null
+      conversions: number | null
+      engagement: string | null
+    }[]
   }[]
 }
 
 async function getCampaigns() {
-  const baseUrl = getBaseUrl()
+  const db = getDb()
   
-  console.log('🔍 Fetching campaigns from:', `${baseUrl}/api/campaigns`)
+  console.log('🔍 Fetching campaigns from database')
   
-  const res = await fetch(`${baseUrl}/api/campaigns`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
+  const campaigns = await db.query.campaigns.findMany({
+    with: {
+      project: true,
+      requirements: true,
+      applications: {
+        with: {
+          creator: {
+            with: {
+              user: true,
+            },
+          },
+          metrics: true,
+        },
+      },
     },
-    cache: 'no-store',
   })
 
-  // Read the response body text once
-  const responseText = await res.text()
-  
-  if (!res.ok) {
-    // Try to parse as JSON first
-    try {
-      const errorData = JSON.parse(responseText)
-      console.error('❌ Failed to fetch campaigns:', errorData)
-      throw new Error(errorData.error || errorData.message || 'Failed to fetch campaigns')
-    } catch (e) {
-      // If JSON parsing fails, it might be HTML
-      console.error('❌ Received non-JSON response:', responseText.substring(0, 200))
-      throw new Error('Received invalid response format from server')
-    }
-  }
-
-  // Try to parse the successful response as JSON
-  try {
-    const data = JSON.parse(responseText)
-    console.log('✅ Fetched campaigns:', data)
-    return data
-  } catch (e) {
-    console.error('❌ Failed to parse response as JSON:', e)
-    throw new Error('Invalid JSON response from server')
-  }
+  console.log('✅ Fetched campaigns:', campaigns.length)
+  return campaigns
 }
 
 export async function CampaignsList() {
@@ -103,12 +94,18 @@ export async function CampaignsList() {
 
     return (
       <div className="grid gap-6">
-        {campaigns.map((campaign: Campaign) => {
+        {campaigns.map((campaign) => {
+          // Calculate total metrics from all applications
           const metrics = {
-            impressions: campaign.metrics?.reduce((sum, m) => sum + m.impressions, 0) || 0,
-            clicks: campaign.metrics?.reduce((sum, m) => sum + m.clicks, 0) || 0,
-            conversions: campaign.metrics?.reduce((sum, m) => sum + m.conversions, 0) || 0,
-            engagement: campaign.metrics?.reduce((sum, m) => sum + parseFloat(m.engagement), 0) / (campaign.metrics?.length || 1) || 0,
+            impressions: campaign.applications?.reduce((sum, app) => 
+              sum + (app.metrics?.reduce((s, m) => s + (m.impressions || 0), 0) || 0), 0) || 0,
+            clicks: campaign.applications?.reduce((sum, app) => 
+              sum + (app.metrics?.reduce((s, m) => s + (m.clicks || 0), 0) || 0), 0) || 0,
+            conversions: campaign.applications?.reduce((sum, app) => 
+              sum + (app.metrics?.reduce((s, m) => s + (m.conversions || 0), 0) || 0), 0) || 0,
+            engagement: campaign.applications?.reduce((sum, app) => 
+              sum + (app.metrics?.reduce((s, m) => s + (parseFloat(m.engagement || '0')), 0) || 0), 0) / 
+              (campaign.applications?.reduce((sum, app) => sum + (app.metrics?.length || 0), 0) || 1) || 0,
             get ctr() {
               return this.impressions > 0 ? (this.clicks / this.impressions) * 100 : 0
             },
@@ -120,6 +117,10 @@ export async function CampaignsList() {
             },
           }
           
+          const platforms = campaign.requirements?.requiredPlatforms 
+            ? JSON.parse(campaign.requirements.requiredPlatforms) as string[]
+            : []
+          
           return (
             <CampaignCard
               key={campaign.id}
@@ -127,11 +128,11 @@ export async function CampaignsList() {
               name={campaign.name}
               status={campaign.status}
               budget={campaign.budget}
-              startDate={campaign.startDate}
-              endDate={campaign.endDate}
+              startDate={campaign.startDate.toISOString()}
+              endDate={campaign.endDate.toISOString()}
               projectName={campaign.project.name}
               metrics={metrics}
-              platforms={campaign.requirements.requiredPlatforms}
+              platforms={platforms}
               applicationsCount={campaign.applications.length}
             />
           )
