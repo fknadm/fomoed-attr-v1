@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
-import { campaigns } from '@/db/schema'
+import { campaigns, campaignRequirements } from '@/db/schema'
 import { nanoid } from 'nanoid'
 import { eq } from 'drizzle-orm'
 import { sql } from 'drizzle-orm'
+import { logError } from '@/lib/logger'
 
 // Logger middleware
 const logRequest = (method: string, path: string, body?: any) => {
@@ -16,16 +17,6 @@ const logRequest = (method: string, path: string, body?: any) => {
 // Response logger
 const logResponse = (status: number, data: any) => {
   console.log(`📬 Response [${status}]:`, data)
-}
-
-// Enhanced error logger
-const logError = (stage: string, error: any, context?: any) => {
-  console.error(`❌ Error during ${stage}:`, {
-    message: error?.message,
-    name: error?.name,
-    stack: error?.stack,
-    context,
-  })
 }
 
 export async function GET(request: Request) {
@@ -50,7 +41,7 @@ export async function GET(request: Request) {
 
     // If missing required env vars, return error immediately
     if (!process.env.TURSO_DATABASE_URL || !process.env.TURSO_AUTH_TOKEN) {
-      logError('environment check', new Error('Missing environment variables'), envCheck)
+      logError('environment check', new Error('Missing environment variables'))
       return NextResponse.json(
         { 
           error: 'Database configuration error',
@@ -101,7 +92,7 @@ export async function GET(request: Request) {
 
       return NextResponse.json(allCampaigns)
     } catch (error) {
-      logError('database operation', error, { status, projectId })
+      logError('database operation', error)
       return NextResponse.json(
         { 
           error: 'Database operation failed',
@@ -125,24 +116,44 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
+    const data = await request.json()
     const db = getDb()
     
-    const newCampaign = await db.insert(campaigns).values({
+    // Create campaign
+    const [newCampaign] = await db.insert(campaigns).values({
       id: nanoid(),
-      projectId: body.projectId,
-      name: body.name,
-      description: body.description,
-      budget: body.budget,
-      startDate: new Date(body.startDate),
-      endDate: new Date(body.endDate),
+      projectId: data.projectId,
+      name: data.title,
+      description: data.description,
+      heroImage: data.heroImage,
+      budget: data.budget.toString(),
+      cpmValue: data.cpmValue.toString(),
+      startDate: new Date(data.dateRange.from),
+      endDate: new Date(data.dateRange.to),
       status: 'draft',
       createdAt: new Date(),
       updatedAt: new Date(),
     }).returning()
 
+    // Create campaign requirements
+    await db.insert(campaignRequirements).values({
+      id: nanoid(),
+      campaignId: newCampaign.id,
+      minFollowers: parseInt(data.requirements.minFollowers) || 0,
+      requiredPlatforms: JSON.stringify(data.platforms),
+      contentType: 'post', // Default to post, can be updated later
+      deliverables: JSON.stringify({
+        list: data.deliverables.split('\n').filter(Boolean), // Convert textarea content to array
+        guidelines: data.guidelines,
+        socialLinks: data.socialLinks,
+      }),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+
+    // Fetch the complete campaign with requirements
     const campaign = await db.query.campaigns.findFirst({
-      where: (campaigns, { eq }) => eq(campaigns.id, newCampaign[0].id),
+      where: (campaigns, { eq }) => eq(campaigns.id, newCampaign.id),
       with: {
         project: true,
         requirements: true,

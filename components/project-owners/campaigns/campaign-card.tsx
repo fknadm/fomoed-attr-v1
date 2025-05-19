@@ -21,12 +21,24 @@ interface CampaignCardProps {
   name: string
   status: string
   budget: string
+  cpmValue: string
   startDate: string
   endDate: string
   projectName: string
   metrics: CampaignMetrics
   platforms: string | string[]
   applicationsCount: number
+  monetizationPolicy?: {
+    id: string
+    name: string
+    baseRateMultiplier: string
+  } | null
+}
+
+// Format date in a consistent way for both server and client
+function formatDate(dateString: string) {
+  const date = new Date(dateString)
+  return date.toISOString().split('T')[0] // YYYY-MM-DD format
 }
 
 export function CampaignCard({
@@ -34,12 +46,14 @@ export function CampaignCard({
   name,
   status,
   budget,
+  cpmValue,
   startDate,
   endDate,
   projectName,
   metrics,
   platforms,
   applicationsCount,
+  monetizationPolicy,
 }: CampaignCardProps) {
   // Parse platforms if it's a string
   const parsedPlatforms = typeof platforms === 'string' ? JSON.parse(platforms) : platforms
@@ -69,6 +83,12 @@ export function CampaignCard({
             <div className="text-sm text-muted-foreground">
               Project: {projectName}
             </div>
+            {monetizationPolicy && (
+              <div className="text-sm text-muted-foreground mt-1">
+                Policy: <Link href={`/project-owners/monetization?policy=${monetizationPolicy.id}`} className="text-primary hover:underline">{monetizationPolicy.name}</Link>
+                <span className="ml-2">({parseFloat(monetizationPolicy.baseRateMultiplier).toFixed(1)}x)</span>
+              </div>
+            )}
           </div>
           <Link
             href={`/project-owners/campaigns/${id}`}
@@ -88,6 +108,13 @@ export function CampaignCard({
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <div>
+              <p className="text-sm font-medium">{formatCurrency(parseFloat(cpmValue))}</p>
+              <p className="text-xs text-muted-foreground">Set CPM</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
             <Users className="h-4 w-4 text-muted-foreground" />
             <div>
               <p className="text-sm font-medium">{applicationsCount}</p>
@@ -98,7 +125,7 @@ export function CampaignCard({
             <Calendar className="h-4 w-4 text-muted-foreground" />
             <div>
               <p className="text-sm font-medium">
-                {new Date(startDate).toLocaleDateString()} - {new Date(endDate).toLocaleDateString()}
+                {formatDate(startDate)} - {formatDate(endDate)}
               </p>
               <p className="text-xs text-muted-foreground">Timeline</p>
             </div>

@@ -11,6 +11,7 @@ interface Campaign {
   description: string
   status: string
   budget: string
+  cpmValue: string
   startDate: Date
   endDate: Date
   projectId: string
@@ -20,6 +21,11 @@ interface Campaign {
     id: string
     name: string
   }
+  monetizationPolicy: {
+    id: string
+    name: string
+    baseRateMultiplier: string
+  } | null
   requirements: {
     minFollowers: number
     requiredPlatforms: string
@@ -52,6 +58,7 @@ async function getCampaigns() {
     with: {
       project: true,
       requirements: true,
+      monetizationPolicy: true,
       applications: {
         with: {
           creator: {
@@ -128,12 +135,14 @@ export async function CampaignsList() {
               name={campaign.name}
               status={campaign.status}
               budget={campaign.budget}
+              cpmValue={campaign.cpmValue}
               startDate={campaign.startDate.toISOString()}
               endDate={campaign.endDate.toISOString()}
               projectName={campaign.project.name}
               metrics={metrics}
               platforms={platforms}
               applicationsCount={campaign.applications.length}
+              monetizationPolicy={campaign.monetizationPolicy}
             />
           )
         })}

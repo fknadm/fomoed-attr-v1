@@ -50,10 +50,13 @@ export const campaigns = sqliteTable('campaigns', {
   projectId: text('project_id').notNull().references(() => projects.id),
   name: text('name').notNull(),
   description: text('description').notNull(),
+  heroImage: text('hero_image'),
   budget: text('budget').notNull(), // Using text for precise decimal handling
+  cpmValue: text('cpm_value').notNull(), // Using text for precise decimal handling
   startDate: integer('start_date', { mode: 'timestamp' }).notNull(),
   endDate: integer('end_date', { mode: 'timestamp' }).notNull(),
   status: text('status', { enum: ['draft', 'active', 'completed', 'cancelled'] }).notNull().default('draft'),
+  monetizationPolicyId: text('monetization_policy_id').references(() => monetizationPolicies.id),
   createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
 })
@@ -66,6 +69,10 @@ export const campaignsRelations = relations(campaigns, ({ one, many }) => ({
   requirements: one(campaignRequirements),
   applications: many(campaignApplications),
   metrics: many(campaignMetrics),
+  monetizationPolicy: one(monetizationPolicies, {
+    fields: [campaigns.monetizationPolicyId],
+    references: [monetizationPolicies.id],
+  }),
 }))
 
 // Campaign Requirements table
@@ -96,6 +103,7 @@ export const creatorProfiles = sqliteTable('creator_profiles', {
   twitterFollowers: integer('twitter_followers'),
   discordHandle: text('discord_handle'),
   websiteUrl: text('website_url'),
+  tier: text('tier', { enum: ['BRONZE', 'SILVER', 'GOLD'] }).notNull().default('BRONZE'),
   createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
 })
@@ -155,5 +163,56 @@ export const campaignMetricsRelations = relations(campaignMetrics, ({ one }) => 
   application: one(campaignApplications, {
     fields: [campaignMetrics.applicationId],
     references: [campaignApplications.id],
+  }),
+}))
+
+// Monetization Policies table
+export const monetizationPolicies = sqliteTable('monetization_policies', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  description: text('description'),
+  baseRateMultiplier: text('base_rate_multiplier').notNull().default('1.0'), // Using text for precise decimal handling
+  createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+})
+
+// Milestone Bonuses table
+export const milestoneBonus = sqliteTable('milestone_bonus', {
+  id: text('id').primaryKey(),
+  policyId: text('policy_id').notNull().references(() => monetizationPolicies.id),
+  impressionGoal: integer('impression_goal').notNull(),
+  bonusAmount: text('bonus_amount').notNull(), // Using text for precise decimal handling
+  createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+})
+
+// KOL Tier Bonuses table
+export const kolTierBonus = sqliteTable('kol_tier_bonus', {
+  id: text('id').primaryKey(),
+  policyId: text('policy_id').notNull().references(() => monetizationPolicies.id),
+  tier: text('tier', { enum: ['BRONZE', 'SILVER', 'GOLD'] }).notNull(),
+  bonusPercentage: text('bonus_percentage').notNull(), // Using text for precise decimal handling
+  createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+})
+
+// Relations for monetization policies
+export const monetizationPoliciesRelations = relations(monetizationPolicies, ({ many }) => ({
+  campaigns: many(campaigns),
+  milestoneBonus: many(milestoneBonus),
+  kolTierBonus: many(kolTierBonus),
+}))
+
+export const milestoneBonusRelations = relations(milestoneBonus, ({ one }) => ({
+  policy: one(monetizationPolicies, {
+    fields: [milestoneBonus.policyId],
+    references: [monetizationPolicies.id],
+  }),
+}))
+
+export const kolTierBonusRelations = relations(kolTierBonus, ({ one }) => ({
+  policy: one(monetizationPolicies, {
+    fields: [kolTierBonus.policyId],
+    references: [monetizationPolicies.id],
   }),
 })) 

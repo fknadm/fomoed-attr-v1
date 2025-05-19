@@ -8,6 +8,7 @@ import {
   ListPlus,
   Settings,
   Users,
+  DollarSign,
 } from "lucide-react"
 
 const sidebarItems = [
@@ -15,6 +16,11 @@ const sidebarItems = [
     title: "Campaigns",
     href: "/project-owners",
     icon: ListPlus,
+  },
+  {
+    title: "Monetization Policies",
+    href: "/project-owners/monetization-policies",
+    icon: DollarSign,
   },
   {
     title: "Analytics",

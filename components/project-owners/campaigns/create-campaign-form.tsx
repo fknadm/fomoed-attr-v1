@@ -26,11 +26,20 @@ import {
 import { DatePickerWithRange } from "@/components/ui/date-range-picker"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ProjectSearch } from "./project-search"
+import { useState } from "react"
+import { toast } from "sonner"
 
 const campaignFormSchema = z.object({
   projectId: z.string().min(1, "Project is required"),
   title: z.string().min(1, "Title is required"),
   description: z.string().min(1, "Description is required"),
+  heroImage: z.string().min(1, "Hero image is required"),
+  socialLinks: z.object({
+    twitter: z.string().optional(),
+    discord: z.string().optional(),
+    telegram: z.string().optional(),
+    website: z.string().optional(),
+  }),
   budget: z.string().min(1, "Budget is required"),
   cpmValue: z.string().min(1, "CPM value is required"),
   platforms: z.array(z.string()).min(1, "Select at least one platform"),
@@ -56,6 +65,12 @@ const defaultValues: Partial<CampaignFormValues> = {
     verifiedOnly: false,
     tier: "SILVER",
   },
+  socialLinks: {
+    twitter: "",
+    discord: "",
+    telegram: "",
+    website: "",
+  },
 }
 
 interface CreateCampaignFormProps {
@@ -63,18 +78,58 @@ interface CreateCampaignFormProps {
 }
 
 export function CreateCampaignForm({ onSuccess }: CreateCampaignFormProps) {
+  const [isUploading, setIsUploading] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const form = useForm<CampaignFormValues>({
     resolver: zodResolver(campaignFormSchema),
     defaultValues,
   })
 
+  async function uploadFile(file: File): Promise<string> {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const response = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData,
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to upload file')
+    }
+
+    const data = await response.json()
+    return data.url
+  }
+
   async function onSubmit(data: CampaignFormValues) {
     try {
-      // TODO: Implement campaign creation API call
-      console.log(data)
+      setIsSubmitting(true)
+      console.log('Submitting campaign data:', data)
+      const response = await fetch('/api/campaigns', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        console.error('Campaign creation failed:', error)
+        throw new Error(error.error || 'Failed to create campaign')
+      }
+
+      const result = await response.json()
+      console.log('Campaign created successfully:', result)
+      toast.success('Campaign created successfully')
       onSuccess()
     } catch (error) {
-      console.error(error)
+      console.error('Error creating campaign:', error)
+      toast.error('Failed to create campaign')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -130,6 +185,54 @@ export function CreateCampaignForm({ onSuccess }: CreateCampaignFormProps) {
                   {...field}
                 />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="heroImage"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Hero Image</FormLabel>
+              <FormControl>
+                <div className="space-y-4">
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    disabled={isUploading}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        try {
+                          setIsUploading(true)
+                          const url = await uploadFile(file)
+                          field.onChange(url)
+                          toast.success('Image uploaded successfully')
+                        } catch (error) {
+                          console.error(error)
+                          toast.error('Failed to upload image')
+                        } finally {
+                          setIsUploading(false)
+                        }
+                      }
+                    }}
+                  />
+                  {field.value && (
+                    <div className="relative w-full h-40 rounded-lg overflow-hidden">
+                      <img
+                        src={field.value}
+                        alt="Hero preview"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                </div>
+              </FormControl>
+              <FormDescription>
+                Upload a high-quality image for your campaign banner (recommended size: 1920x600px)
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -334,8 +437,73 @@ export function CreateCampaignForm({ onSuccess }: CreateCampaignFormProps) {
           )}
         />
 
-        <Button type="submit" className="w-full">
-          Create Campaign
+        <div className="space-y-4">
+          <FormLabel>Social Links</FormLabel>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="socialLinks.twitter"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Twitter</FormLabel>
+                  <FormControl>
+                    <Input placeholder="https://twitter.com/..." {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="socialLinks.discord"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Discord</FormLabel>
+                  <FormControl>
+                    <Input placeholder="https://discord.gg/..." {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="socialLinks.telegram"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Telegram</FormLabel>
+                  <FormControl>
+                    <Input placeholder="https://t.me/..." {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="socialLinks.website"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Website</FormLabel>
+                  <FormControl>
+                    <Input placeholder="https://..." {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+
+        <Button 
+          type="submit" 
+          className="w-full"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? 'Creating Campaign...' : 'Create Campaign'}
         </Button>
       </form>
     </Form>
