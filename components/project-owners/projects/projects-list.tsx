@@ -66,40 +66,46 @@ export function ProjectsList() {
 
                 <div className="flex flex-wrap gap-2">
                   {project.website && (
-                    <a
-                      href={project.website}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        window.open(project.website, '_blank', 'noopener,noreferrer')
+                      }}
                       className="flex items-center gap-1 text-sm text-muted-foreground hover:text-primary"
-                      onClick={(e) => e.stopPropagation()}
                     >
                       <Globe className="h-4 w-4" />
                       Website
-                    </a>
+                    </button>
                   )}
                   {project.twitter && (
-                    <a
-                      href={`https://twitter.com/${project.twitter.replace('@', '')}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        window.open(`https://twitter.com/${project.twitter.replace('@', '')}`, '_blank', 'noopener,noreferrer')
+                      }}
                       className="flex items-center gap-1 text-sm text-muted-foreground hover:text-primary"
-                      onClick={(e) => e.stopPropagation()}
                     >
                       <Twitter className="h-4 w-4" />
                       Twitter
-                    </a>
+                    </button>
                   )}
                   {project.discord && (
-                    <a
-                      href={`https://discord.gg/${project.discord}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        window.open(`https://discord.gg/${project.discord}`, '_blank', 'noopener,noreferrer')
+                      }}
                       className="flex items-center gap-1 text-sm text-muted-foreground hover:text-primary"
-                      onClick={(e) => e.stopPropagation()}
                     >
                       <MessageCircle className="h-4 w-4" />
                       Discord
-                    </a>
+                    </button>
                   )}
                 </div>
 

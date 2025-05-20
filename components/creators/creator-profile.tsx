@@ -17,12 +17,12 @@ async function getCreatorProfile() {
   })
 
   if (!res.ok) {
-    const errorText = await res.text();
-    console.error(`Failed to fetch creator profile: ${res.status} ${res.statusText}`, errorText);
-    throw new Error('Failed to fetch creator profile');
+    const errorText = await res.text()
+    console.error(`Failed to fetch creator profile: ${res.status} ${res.statusText}`, errorText)
+    throw new Error('Failed to fetch creator profile')
   }
 
-  return res.json();
+  return res.json()
 }
 
 export async function CreatorProfile() {

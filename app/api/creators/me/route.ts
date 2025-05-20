@@ -1,38 +1,50 @@
 import { NextResponse } from 'next/server'
+import { getDb } from '@/lib/db'
+import { creatorProfiles } from '@/db/schema'
+import { eq } from 'drizzle-orm'
 
 export async function GET() {
-  // Hardcoded response for testing
-  return NextResponse.json({
-    id: 'creator_1',
-    userId: 'user_1',
-    bio: 'Web3 content creator and community builder',
-    twitterHandle: '@web3_creator',
-    twitterFollowers: 35000,
-    discordHandle: 'web3_creator#1234',
-    websiteUrl: 'https://web3-creator.io',
-    tier: 'GOLD',
-    user: {
-      id: 'user_1',
-      name: 'Web3 Creator',
-      email: 'creator@example.com',
-    },
-    applications: [],
-  })
+  try {
+    const db = getDb()
+    const profile = await db.query.creatorProfiles.findFirst({
+      with: {
+        user: true,
+        applications: {
+          with: {
+            campaign: {
+              with: {
+                project: true,
+              },
+            },
+            metrics: true,
+          },
+        },
+      },
+    })
+
+    if (!profile) {
+      return NextResponse.json(
+        { error: 'No creator profiles found' },
+        { status: 404 }
+      )
+    }
+
+    return NextResponse.json(profile)
+  } catch (error) {
+    console.error('Error fetching creator profile:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch creator profile' },
+      { status: 500 }
+    )
+  }
 }
 
 export async function PUT(request: Request) {
   try {
     const body = await request.json()
     const db = getDb()
-    // TODO: Get the authenticated user's ID from the session
-    const userId = 'user_1' // Temporary for testing
-
-    await db.query.creatorProfiles.findFirst({
-      where: (profiles, { eq }) => eq(profiles.userId, userId),
-    })
 
     const profile = await db.query.creatorProfiles.findFirst({
-      where: (profiles, { eq }) => eq(profiles.userId, userId),
       with: {
         user: true,
       },
@@ -55,10 +67,10 @@ export async function PUT(request: Request) {
         websiteUrl: body.websiteUrl,
         updatedAt: new Date(),
       })
-      .where(eq(creatorProfiles.userId, userId))
+      .where(eq(creatorProfiles.id, profile.id))
 
     const updatedProfile = await db.query.creatorProfiles.findFirst({
-      where: (profiles, { eq }) => eq(profiles.userId, userId),
+      where: (profiles, { eq }) => eq(profiles.id, profile.id),
       with: {
         user: true,
         applications: {

@@ -13,7 +13,6 @@
     "db:migrate": "tsx scripts/migrate.ts"
   },
   "dependencies": {
-    "@clerk/nextjs": "^6.19.4",
     "@hookform/resolvers": "^5.0.1",
     "@libsql/client": "^0.15.6",
     "@radix-ui/react-alert-dialog": "^1.1.13",
