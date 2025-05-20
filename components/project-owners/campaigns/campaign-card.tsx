@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Calendar, Users, DollarSign, BarChart2, TrendingUp, MousePointerClick, Share2 } from "lucide-react"
+import { Calendar, Users, DollarSign, BarChart2, TrendingUp, MousePointerClick, Share2, Building2 } from "lucide-react"
 import Link from "next/link"
 import { formatCurrency, formatNumber } from "@/lib/format"
 
@@ -80,8 +80,15 @@ export function CampaignCard({
                 {status}
               </Badge>
             </div>
-            <div className="text-sm text-muted-foreground">
-              Project: {projectName}
+            <div className="flex items-center gap-2 mt-2">
+              <Building2 className="h-4 w-4 text-muted-foreground" />
+              <Link 
+                href={`/project-owners/projects/${id}`}
+                className="text-sm font-medium text-primary hover:underline flex items-center gap-1"
+              >
+                {projectName}
+                <span className="text-xs text-muted-foreground">(View Project)</span>
+              </Link>
             </div>
             {monetizationPolicy && (
               <div className="text-sm text-muted-foreground mt-1">

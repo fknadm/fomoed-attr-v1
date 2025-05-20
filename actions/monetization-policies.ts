@@ -6,6 +6,7 @@ import {
   milestoneBonus,
   kolTierBonus,
   campaigns,
+  campaignMonetizationPolicies,
 } from '@/db/schema';
 import { nanoid } from 'nanoid';
 import { revalidatePath } from 'next/cache';
@@ -16,233 +17,296 @@ interface ActionResult {
   success: boolean;
   message?: string;
   policyId?: string;
+  data?: any;
+  error?: string;
 }
 
 export async function createMonetizationPolicyAction(
-  data: CreatePolicyInput
+  data: {
+    name: string
+    baseRateMultiplier: string
+    milestoneBonuses: Array<{
+      impressionGoal: string
+      bonusAmount: string
+    }>
+    kolTierBonuses: Array<{
+      tier: string
+      bonusPercentage: string
+    }>
+    campaignIds?: string[]
+  }
 ): Promise<ActionResult> {
   console.log('Server Action: createMonetizationPolicyAction called with data:', data);
-
-  const validation = createPolicyServerSchema.safeParse(data);
-  if (!validation.success) {
-    console.error('Server Action: Validation failed', validation.error.flatten());
-    return {
-      success: false,
-      message: 'Server validation failed: ' + JSON.stringify(validation.error.flatten().fieldErrors, null, 2),
-    };
-  }
-
-  const validatedData = validation.data;
-  const db = getDb();
-  const newPolicyId = nanoid();
-
+  
   try {
-    await db.transaction(async (tx) => {
-      // Insert into monetizationPolicies
-      await tx.insert(monetizationPolicies).values({
-        id: newPolicyId,
-        name: validatedData.name,
-        description: validatedData.description || null,
-        baseRateMultiplier: validatedData.baseRateMultiplier, // Schema expects text
-        // createdAt and updatedAt have defaults in schema
-      });
-      console.log('Server Action: Inserted policy', newPolicyId);
+    // Validate baseRateMultiplier
+    if (!Number.isFinite(Number(data.baseRateMultiplier))) {
+      throw new Error('Base rate multiplier must be a valid number');
+    }
+    // Validate milestoneBonuses
+    for (const bonus of data.milestoneBonuses) {
+      const impressionGoal = parseInt(bonus.impressionGoal);
+      if (!Number.isFinite(impressionGoal)) {
+        throw new Error('Impression goal must be a valid number');
+      }
+      if (!Number.isFinite(Number(bonus.bonusAmount))) {
+        throw new Error('Bonus amount must be a valid number');
+      }
+    }
+    // Validate kolTierBonuses
+    for (const bonus of data.kolTierBonuses) {
+      if (!Number.isFinite(Number(bonus.bonusPercentage))) {
+        throw new Error('KOL tier bonus percentage must be a valid number');
+      }
+    }
+    const db = getDb()
+    const policyId = nanoid()
+    
+    // Start a transaction
+    const result = await db.transaction(async (tx) => {
+      // Create the policy
+      const [policy] = await tx
+        .insert(monetizationPolicies)
+        .values({
+          id: policyId,
+          name: data.name,
+          baseRateMultiplier: data.baseRateMultiplier,
+        })
+        .returning()
 
-      // Insert milestone bonuses
-      if (validatedData.milestoneBonuses && validatedData.milestoneBonuses.length > 0) {
-        const milestoneInserts = validatedData.milestoneBonuses.map((mb) => ({
-          id: nanoid(),
-          policyId: newPolicyId,
-          impressionGoal: parseInt(mb.impressionGoal, 10), // Convert to number
-          bonusAmount: mb.bonusAmount, // Schema expects text
-        }));
-        await tx.insert(milestoneBonus).values(milestoneInserts);
-        console.log('Server Action: Inserted milestone bonuses', milestoneInserts.length);
+      // Create milestone bonuses
+      if (data.milestoneBonuses.length > 0) {
+        await tx
+          .insert(milestoneBonus)
+          .values(
+            data.milestoneBonuses.map(bonus => ({
+              id: nanoid(),
+              policyId: policy.id,
+              impressionGoal: parseInt(bonus.impressionGoal),
+              bonusAmount: bonus.bonusAmount,
+            }))
+          )
       }
 
-      // Insert KOL tier bonuses
-      if (validatedData.kolTierBonuses && validatedData.kolTierBonuses.length > 0) {
-        const kolTierInserts = validatedData.kolTierBonuses.map((ktb) => ({
-          id: nanoid(),
-          policyId: newPolicyId,
-          tier: ktb.tier,
-          bonusPercentage: ktb.bonusPercentage, // Schema expects text
-        }));
-        await tx.insert(kolTierBonus).values(kolTierInserts);
-        console.log('Server Action: Inserted KOL tier bonuses', kolTierInserts.length);
+      // Create KOL tier bonuses
+      if (data.kolTierBonuses.length > 0) {
+        await tx
+          .insert(kolTierBonus)
+          .values(
+            data.kolTierBonuses.map(bonus => ({
+              id: nanoid(),
+              policyId: policy.id,
+              tier: bonus.tier as 'BRONZE' | 'SILVER' | 'GOLD',
+              bonusPercentage: bonus.bonusPercentage,
+            }))
+          )
       }
 
       // Link campaigns if provided
-      if (validatedData.campaignIds && validatedData.campaignIds.length > 0) {
-        for (const campaignId of validatedData.campaignIds) {
-          await tx.update(campaigns)
-            .set({ monetizationPolicyId: newPolicyId })
-            .where(eq(campaigns.id, campaignId));
-        }
-        console.log('Server Action: Linked campaigns to policy', validatedData.campaignIds.length);
+      if (data.campaignIds?.length) {
+        await tx
+          .insert(campaignMonetizationPolicies)
+          .values(
+            data.campaignIds.map(campaignId => ({
+              id: nanoid(),
+              campaignId,
+              policyId: policy.id,
+            }))
+          )
       }
-    });
 
-    // Revalidate the paths to update the lists
-    revalidatePath('/project-owners/monetization-policies');
-    revalidatePath('/project-owners/campaigns');
-    console.log('Server Action: Policy creation successful, paths revalidated.');
+      return policy
+    })
 
-    return {
-      success: true,
+    revalidatePath('/project-owners/monetization-policies')
+    revalidatePath('/project-owners/campaigns')
+    
+    return { 
+      success: true, 
       message: 'Monetization policy created successfully!',
-      policyId: newPolicyId,
-    };
+      policyId: result.id,
+      data: result 
+    }
   } catch (error) {
-    console.error('Server Action: Error creating monetization policy:', error);
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : 'An unknown error occurred during policy creation.',
-    };
+    console.error('Error in createMonetizationPolicyAction:', error)
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : JSON.stringify(error) || 'Failed to create monetization policy' 
+    }
   }
 }
 
 export async function updateMonetizationPolicyAction(
   policyId: string,
-  data: CreatePolicyInput
+  data: {
+    name: string
+    baseRateMultiplier: string
+    milestoneBonuses: Array<{
+      impressionGoal: string
+      bonusAmount: string
+    }>
+    kolTierBonuses: Array<{
+      tier: string
+      bonusPercentage: string
+    }>
+    campaignIds?: string[]
+  }
 ): Promise<ActionResult> {
   console.log('Server Action: updateMonetizationPolicyAction called with data:', data);
-
-  const validation = createPolicyServerSchema.safeParse(data);
-  if (!validation.success) {
-    console.error('Server Action: Validation failed', validation.error.flatten());
-    return {
-      success: false,
-      message: 'Server validation failed: ' + JSON.stringify(validation.error.flatten().fieldErrors, null, 2),
-    };
-  }
-
-  const validatedData = validation.data;
-  const db = getDb();
-
+  
   try {
-    await db.transaction(async (tx) => {
-      // Update monetization policy
-      await tx.update(monetizationPolicies)
+    // Validate baseRateMultiplier
+    if (!Number.isFinite(Number(data.baseRateMultiplier))) {
+      throw new Error('Base rate multiplier must be a valid number');
+    }
+    // Validate milestoneBonuses
+    for (const bonus of data.milestoneBonuses) {
+      const impressionGoal = parseInt(bonus.impressionGoal);
+      if (!Number.isFinite(impressionGoal)) {
+        throw new Error('Impression goal must be a valid number');
+      }
+      if (!Number.isFinite(Number(bonus.bonusAmount))) {
+        throw new Error('Bonus amount must be a valid number');
+      }
+    }
+    // Validate kolTierBonuses
+    for (const bonus of data.kolTierBonuses) {
+      if (!Number.isFinite(Number(bonus.bonusPercentage))) {
+        throw new Error('KOL tier bonus percentage must be a valid number');
+      }
+    }
+    const db = getDb()
+    
+    // Start a transaction
+    const result = await db.transaction(async (tx) => {
+      // Update the policy
+      const [policy] = await tx
+        .update(monetizationPolicies)
         .set({
-          name: validatedData.name,
-          description: validatedData.description || null,
-          baseRateMultiplier: validatedData.baseRateMultiplier,
+          name: data.name,
+          baseRateMultiplier: data.baseRateMultiplier,
           updatedAt: new Date(),
         })
-        .where(eq(monetizationPolicies.id, policyId));
-      console.log('Server Action: Updated policy', policyId);
+        .where(eq(monetizationPolicies.id, policyId))
+        .returning()
 
-      // Delete existing milestone bonuses
-      await tx.delete(milestoneBonus)
-        .where(eq(milestoneBonus.policyId, policyId));
+      // Delete existing bonuses
+      await tx
+        .delete(milestoneBonus)
+        .where(eq(milestoneBonus.policyId, policyId))
+      
+      await tx
+        .delete(kolTierBonus)
+        .where(eq(kolTierBonus.policyId, policyId))
 
-      // Insert new milestone bonuses
-      if (validatedData.milestoneBonuses && validatedData.milestoneBonuses.length > 0) {
-        const milestoneInserts = validatedData.milestoneBonuses.map((mb) => ({
-          id: nanoid(),
-          policyId,
-          impressionGoal: parseInt(mb.impressionGoal, 10),
-          bonusAmount: mb.bonusAmount,
-        }));
-        await tx.insert(milestoneBonus).values(milestoneInserts);
-        console.log('Server Action: Updated milestone bonuses', milestoneInserts.length);
+      // Delete existing campaign links
+      await tx
+        .delete(campaignMonetizationPolicies)
+        .where(eq(campaignMonetizationPolicies.policyId, policyId))
+
+      // Create new milestone bonuses
+      if (data.milestoneBonuses.length > 0) {
+        await tx
+          .insert(milestoneBonus)
+          .values(
+            data.milestoneBonuses.map(bonus => ({
+              id: nanoid(),
+              policyId: policy.id,
+              impressionGoal: parseInt(bonus.impressionGoal),
+              bonusAmount: bonus.bonusAmount,
+            }))
+          )
       }
 
-      // Delete existing KOL tier bonuses
-      await tx.delete(kolTierBonus)
-        .where(eq(kolTierBonus.policyId, policyId));
-
-      // Insert new KOL tier bonuses
-      if (validatedData.kolTierBonuses && validatedData.kolTierBonuses.length > 0) {
-        const kolTierInserts = validatedData.kolTierBonuses.map((ktb) => ({
-          id: nanoid(),
-          policyId,
-          tier: ktb.tier,
-          bonusPercentage: ktb.bonusPercentage,
-        }));
-        await tx.insert(kolTierBonus).values(kolTierInserts);
-        console.log('Server Action: Updated KOL tier bonuses', kolTierInserts.length);
+      // Create new KOL tier bonuses
+      if (data.kolTierBonuses.length > 0) {
+        await tx
+          .insert(kolTierBonus)
+          .values(
+            data.kolTierBonuses.map(bonus => ({
+              id: nanoid(),
+              policyId: policy.id,
+              tier: bonus.tier as 'BRONZE' | 'SILVER' | 'GOLD',
+              bonusPercentage: bonus.bonusPercentage,
+            }))
+          )
       }
 
-      // Update campaign links
-      if (validatedData.campaignIds) {
-        // First, remove policy from all campaigns
-        await tx.update(campaigns)
-          .set({ monetizationPolicyId: null })
-          .where(eq(campaigns.monetizationPolicyId, policyId));
-
-        // Then, add policy to selected campaigns
-        if (validatedData.campaignIds.length > 0) {
-          for (const campaignId of validatedData.campaignIds) {
-            await tx.update(campaigns)
-              .set({ monetizationPolicyId: policyId })
-              .where(eq(campaigns.id, campaignId));
-          }
-        }
-        console.log('Server Action: Updated campaign links');
+      // Create new campaign links
+      if (data.campaignIds?.length) {
+        await tx
+          .insert(campaignMonetizationPolicies)
+          .values(
+            data.campaignIds.map(campaignId => ({
+              id: nanoid(),
+              campaignId,
+              policyId: policy.id,
+            }))
+          )
       }
-    });
 
-    // Revalidate the paths to update the lists
-    revalidatePath('/project-owners/monetization-policies');
-    revalidatePath('/project-owners/campaigns');
-    console.log('Server Action: Policy update successful, paths revalidated.');
+      return policy
+    })
 
-    return {
-      success: true,
+    revalidatePath('/project-owners/monetization-policies')
+    revalidatePath('/project-owners/campaigns')
+    
+    return { 
+      success: true, 
       message: 'Monetization policy updated successfully!',
-      policyId,
-    };
+      policyId: result.id,
+      data: result 
+    }
   } catch (error) {
-    console.error('Server Action: Error updating monetization policy:', error);
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : 'An unknown error occurred during policy update.',
-    };
+    console.error('Error in updateMonetizationPolicyAction:', error)
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : JSON.stringify(error) || 'Failed to update monetization policy' 
+    }
   }
 }
 
-export async function deleteMonetizationPolicyAction(
-  policyId: string
-): Promise<ActionResult> {
+export async function deleteMonetizationPolicyAction(policyId: string): Promise<ActionResult> {
   console.log('Server Action: deleteMonetizationPolicyAction called for policy:', policyId);
-  const db = getDb();
-
+  
   try {
+    const db = getDb()
+    
+    // Start a transaction
     await db.transaction(async (tx) => {
-      // First, remove policy from all campaigns
-      await tx.update(campaigns)
-        .set({ monetizationPolicyId: null })
-        .where(eq(campaigns.monetizationPolicyId, policyId));
+      // Delete campaign links
+      await tx
+        .delete(campaignMonetizationPolicies)
+        .where(eq(campaignMonetizationPolicies.policyId, policyId))
 
-      // Delete milestone bonuses (cascade will handle this, but being explicit)
-      await tx.delete(milestoneBonus)
-        .where(eq(milestoneBonus.policyId, policyId));
+      // Delete milestone bonuses
+      await tx
+        .delete(milestoneBonus)
+        .where(eq(milestoneBonus.policyId, policyId))
 
-      // Delete KOL tier bonuses (cascade will handle this, but being explicit)
-      await tx.delete(kolTierBonus)
-        .where(eq(kolTierBonus.policyId, policyId));
+      // Delete KOL tier bonuses
+      await tx
+        .delete(kolTierBonus)
+        .where(eq(kolTierBonus.policyId, policyId))
 
-      // Finally, delete the policy itself
-      await tx.delete(monetizationPolicies)
-        .where(eq(monetizationPolicies.id, policyId));
-    });
+      // Delete the policy
+      await tx
+        .delete(monetizationPolicies)
+        .where(eq(monetizationPolicies.id, policyId))
+    })
 
-    // Revalidate the paths to update the lists
-    revalidatePath('/project-owners/monetization-policies');
-    revalidatePath('/project-owners/campaigns');
-    console.log('Server Action: Policy deletion successful, paths revalidated.');
-
-    return {
-      success: true,
-      message: 'Monetization policy deleted successfully!',
-    };
+    revalidatePath('/project-owners/monetization-policies')
+    revalidatePath('/project-owners/campaigns')
+    
+    return { 
+      success: true, 
+      message: 'Monetization policy deleted successfully!' 
+    }
   } catch (error) {
-    console.error('Server Action: Error deleting monetization policy:', error);
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : 'An unknown error occurred during policy deletion.',
-    };
+    console.error('Error in deleteMonetizationPolicyAction:', error)
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : 'Failed to delete monetization policy' 
+    }
   }
 } 

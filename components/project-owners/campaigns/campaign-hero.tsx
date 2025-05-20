@@ -14,7 +14,7 @@ interface SocialLink {
 interface CampaignHeroProps {
   title: string
   description: string
-  heroImage: string
+  heroImage: string | null
   socialLinks: SocialLink
   className?: string
 }
@@ -26,15 +26,25 @@ export function CampaignHero({
   socialLinks,
   className,
 }: CampaignHeroProps) {
+  // Use a fixed gradient value to avoid hydration errors
+  const gradient = "from-[#059669] to-[#2563eb]";
+
   return (
     <div className={cn('relative w-full h-[400px] overflow-hidden', className)}>
-      {/* Hero Image Background */}
+      {/* Hero Image Background or Gradient */}
       <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{
-          backgroundImage: `url(${heroImage})`,
-        }}
+        className={cn(
+          "absolute inset-0 bg-cover bg-center bg-no-repeat",
+          !heroImage && `bg-gradient-to-br ${gradient}`
+        )}
+        style={heroImage ? { backgroundImage: `url(${heroImage})` } : {}}
       >
+        {/* Pattern overlay for gradient background */}
+        {!heroImage && (
+          <div className="absolute inset-0 opacity-10" style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+          }} />
+        )}
         {/* Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 to-black/90" />
       </div>

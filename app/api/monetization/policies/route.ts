@@ -9,13 +9,26 @@ export async function GET() {
     
     const policies = await db.query.monetizationPolicies.findMany({
       with: {
-        campaigns: true,
+        campaigns: {
+          with: {
+            campaign: true
+          }
+        },
         milestoneBonus: true,
         kolTierBonus: true,
       },
     })
     
-    return NextResponse.json(policies)
+    // Transform the response to include campaign names
+    const transformedPolicies = policies.map(policy => ({
+      ...policy,
+      campaigns: policy.campaigns.map(c => ({
+        id: c.campaign.id,
+        name: c.campaign.name
+      }))
+    }))
+    
+    return NextResponse.json(transformedPolicies)
   } catch (error) {
     logError('fetching monetization policies', error)
     return NextResponse.json(

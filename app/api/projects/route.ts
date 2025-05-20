@@ -2,6 +2,15 @@ import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { projects } from '@/db/schema'
 import { nanoid } from 'nanoid'
+import { z } from 'zod'
+
+const createProjectSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  description: z.string().min(1, 'Description is required'),
+  website: z.string().url().optional(),
+  twitter: z.string().optional(),
+  discord: z.string().optional(),
+})
 
 export async function GET() {
   try {
@@ -12,7 +21,6 @@ export async function GET() {
         campaigns: true,
       },
     })
-    
     return NextResponse.json(allProjects)
   } catch (error) {
     console.error('Error fetching projects:', error)
@@ -25,27 +33,29 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
-    const db = getDb()
-    
-    const project = await db.insert(projects).values({
-      id: nanoid(),
-      name: body.name,
-      description: body.description,
-      ownerId: body.ownerId, // This should come from the authenticated user
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    })
+    // TODO: Implement proper auth
+    const userId = 'test-user-id' // This should come from the authenticated user
 
-    const newProject = await db.query.projects.findFirst({
-      where: (projects, { eq }) => eq(projects.id, project[0].id),
-      with: {
-        owner: true,
-      },
-    })
-    
-    return NextResponse.json(newProject, { status: 201 })
+    const body = await request.json()
+    const validatedData = createProjectSchema.parse(body)
+
+    const db = getDb()
+    const result = await db.insert(projects).values({
+      id: nanoid(),
+      ...validatedData,
+      ownerId: userId,
+    }).returning()
+
+    const project = result[0]
+    return NextResponse.json(project)
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: error.errors },
+        { status: 400 }
+      )
+    }
+
     console.error('Error creating project:', error)
     return NextResponse.json(
       { error: 'Failed to create project' },

@@ -4,19 +4,29 @@ import { eq } from 'drizzle-orm';
 import { CreateMonetizationPolicyForm } from '@/components/project-owners/monetization/create-policy-form';
 import { notFound } from 'next/navigation';
 
+export const dynamic = 'force-dynamic';
+
 interface PageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
-async function getPolicy(id: string) {
+export default async function EditMonetizationPolicyPage({ params }: PageProps) {
+  const { id } = await params;
   const db = getDb();
+  
+  // Get the policy with its bonuses
   const policy = await db.query.monetizationPolicies.findFirst({
     where: eq(monetizationPolicies.id, id),
     with: {
       milestoneBonus: true,
       kolTierBonus: true,
+      campaigns: {
+        with: {
+          campaign: true,
+        },
+      },
     },
   });
 
@@ -24,57 +34,44 @@ async function getPolicy(id: string) {
     notFound();
   }
 
-  return policy;
-}
-
-async function getAvailableCampaigns() {
-  const db = getDb();
-  const campaignsList = await db.query.campaigns.findMany({
-    columns: {
-      id: true,
-      name: true,
-      status: true,
-      monetizationPolicyId: true,
+  // Get all campaigns
+  const allCampaigns = await db.query.campaigns.findMany({
+    with: {
+      monetizationPolicies: {
+        with: {
+          policy: true
+        }
+      },
     },
   });
 
-  return campaignsList;
-}
+  // Filter out campaigns that already have a different policy
+  const availableCampaigns = allCampaigns.filter(c => 
+    c.monetizationPolicies.length === 0 || 
+    c.monetizationPolicies.some(p => p.policy.id === id)
+  );
 
-export default async function EditMonetizationPolicyPage({ params: { id } }: PageProps) {
-  const [policy, campaigns] = await Promise.all([
-    getPolicy(id),
-    getAvailableCampaigns(),
-  ]);
-
-  const initialData = {
-    name: policy.name,
-    description: policy.description || '',
-    baseRateMultiplier: policy.baseRateMultiplier,
-    milestoneBonuses: policy.milestoneBonus.map(mb => ({
-      impressionGoal: mb.impressionGoal.toString(),
-      bonusAmount: mb.bonusAmount,
-    })),
-    kolTierBonuses: policy.kolTierBonus.map(ktb => ({
-      tier: ktb.tier,
-      bonusPercentage: ktb.bonusPercentage,
-    })),
-    campaignIds: campaigns
-      .filter(c => c.monetizationPolicyId === id)
-      .map(c => c.id),
-  };
+  // Get the IDs of campaigns that are currently linked to this policy
+  const linkedCampaignIds = policy.campaigns.map(c => c.campaign.id);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Edit Monetization Policy</h1>
-        <p className="text-muted-foreground">
-          Update the policy details, bonuses, and campaign links.
-        </p>
-      </div>
-      <CreateMonetizationPolicyForm
-        campaigns={campaigns}
-        initialData={initialData}
+    <div className="container max-w-4xl py-8">
+      <h1 className="text-2xl font-semibold tracking-tight mb-8">Edit Monetization Policy</h1>
+      <CreateMonetizationPolicyForm 
+        campaigns={availableCampaigns}
+        initialData={{
+          name: policy.name,
+          baseRateMultiplier: policy.baseRateMultiplier,
+          milestoneBonuses: policy.milestoneBonus.map(b => ({
+            impressionGoal: b.impressionGoal.toString(),
+            bonusAmount: b.bonusAmount,
+          })),
+          kolTierBonuses: policy.kolTierBonus.map(b => ({
+            tier: b.tier,
+            bonusPercentage: b.bonusPercentage,
+          })),
+          campaignIds: linkedCampaignIds,
+        }}
         policyId={id}
       />
     </div>

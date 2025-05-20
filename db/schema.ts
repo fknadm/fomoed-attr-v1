@@ -31,6 +31,7 @@ export const projects = sqliteTable('projects', {
   website: text('website'),
   twitter: text('twitter'),
   discord: text('discord'),
+  heroImage: text('hero_image'),
   ownerId: text('owner_id').notNull().references(() => users.id),
   createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
@@ -44,6 +45,16 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
   campaigns: many(campaigns),
 }))
 
+// Monetization Policies table
+export const monetizationPolicies = sqliteTable('monetization_policies', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  description: text('description'),
+  baseRateMultiplier: text('base_rate_multiplier').notNull().default('1.0'), // Using text for precise decimal handling
+  createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+})
+
 // Campaigns table
 export const campaigns = sqliteTable('campaigns', {
   id: text('id').primaryKey(),
@@ -56,24 +67,18 @@ export const campaigns = sqliteTable('campaigns', {
   startDate: integer('start_date', { mode: 'timestamp' }).notNull(),
   endDate: integer('end_date', { mode: 'timestamp' }).notNull(),
   status: text('status', { enum: ['draft', 'active', 'completed', 'cancelled'] }).notNull().default('draft'),
-  monetizationPolicyId: text('monetization_policy_id').references(() => monetizationPolicies.id),
   createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
 })
 
-export const campaignsRelations = relations(campaigns, ({ one, many }) => ({
-  project: one(projects, {
-    fields: [campaigns.projectId],
-    references: [projects.id],
-  }),
-  requirements: one(campaignRequirements),
-  applications: many(campaignApplications),
-  metrics: many(campaignMetrics),
-  monetizationPolicy: one(monetizationPolicies, {
-    fields: [campaigns.monetizationPolicyId],
-    references: [monetizationPolicies.id],
-  }),
-}))
+// Campaign Monetization Policy Junction table
+export const campaignMonetizationPolicies = sqliteTable('campaign_monetization_policies', {
+  id: text('id').primaryKey(),
+  campaignId: text('campaign_id').notNull().references(() => campaigns.id),
+  policyId: text('policy_id').notNull().references(() => monetizationPolicies.id),
+  createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+})
 
 // Campaign Requirements table
 export const campaignRequirements = sqliteTable('campaign_requirements', {
@@ -86,13 +91,6 @@ export const campaignRequirements = sqliteTable('campaign_requirements', {
   createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
 })
-
-export const campaignRequirementsRelations = relations(campaignRequirements, ({ one }) => ({
-  campaign: one(campaigns, {
-    fields: [campaignRequirements.campaignId],
-    references: [campaigns.id],
-  }),
-}))
 
 // Creator Profiles table
 export const creatorProfiles = sqliteTable('creator_profiles', {
@@ -108,14 +106,6 @@ export const creatorProfiles = sqliteTable('creator_profiles', {
   updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
 })
 
-export const creatorProfilesRelations = relations(creatorProfiles, ({ one, many }) => ({
-  user: one(users, {
-    fields: [creatorProfiles.userId],
-    references: [users.id],
-  }),
-  applications: many(campaignApplications),
-}))
-
 // Campaign Applications table
 export const campaignApplications = sqliteTable('campaign_applications', {
   id: text('id').primaryKey(),
@@ -128,18 +118,6 @@ export const campaignApplications = sqliteTable('campaign_applications', {
   updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
 })
 
-export const campaignApplicationsRelations = relations(campaignApplications, ({ one, many }) => ({
-  campaign: one(campaigns, {
-    fields: [campaignApplications.campaignId],
-    references: [campaigns.id],
-  }),
-  creator: one(creatorProfiles, {
-    fields: [campaignApplications.creatorId],
-    references: [creatorProfiles.id],
-  }),
-  metrics: many(campaignMetrics),
-}))
-
 // Campaign Metrics table
 export const campaignMetrics = sqliteTable('campaign_metrics', {
   id: text('id').primaryKey(),
@@ -151,27 +129,6 @@ export const campaignMetrics = sqliteTable('campaign_metrics', {
   engagement: text('engagement').default('0'), // Using text for precise decimal handling
   postUrl: text('post_url'), // URL to the social media post
   platform: text('platform', { enum: ['twitter', 'instagram', 'youtube', 'tiktok', 'discord', 'other'] }), // Platform of the post
-  createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
-  updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
-})
-
-export const campaignMetricsRelations = relations(campaignMetrics, ({ one }) => ({
-  campaign: one(campaigns, {
-    fields: [campaignMetrics.campaignId],
-    references: [campaigns.id],
-  }),
-  application: one(campaignApplications, {
-    fields: [campaignMetrics.applicationId],
-    references: [campaignApplications.id],
-  }),
-}))
-
-// Monetization Policies table
-export const monetizationPolicies = sqliteTable('monetization_policies', {
-  id: text('id').primaryKey(),
-  name: text('name').notNull(),
-  description: text('description'),
-  baseRateMultiplier: text('base_rate_multiplier').notNull().default('1.0'), // Using text for precise decimal handling
   createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
 })
@@ -196,11 +153,71 @@ export const kolTierBonus = sqliteTable('kol_tier_bonus', {
   updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
 })
 
-// Relations for monetization policies
+// Relations
+export const campaignsRelations = relations(campaigns, ({ one, many }) => ({
+  project: one(projects, {
+    fields: [campaigns.projectId],
+    references: [projects.id],
+  }),
+  requirements: one(campaignRequirements),
+  applications: many(campaignApplications),
+  metrics: many(campaignMetrics),
+  monetizationPolicies: many(campaignMonetizationPolicies),
+}))
+
 export const monetizationPoliciesRelations = relations(monetizationPolicies, ({ many }) => ({
-  campaigns: many(campaigns),
+  campaigns: many(campaignMonetizationPolicies),
   milestoneBonus: many(milestoneBonus),
   kolTierBonus: many(kolTierBonus),
+}))
+
+export const campaignMonetizationPoliciesRelations = relations(campaignMonetizationPolicies, ({ one }) => ({
+  campaign: one(campaigns, {
+    fields: [campaignMonetizationPolicies.campaignId],
+    references: [campaigns.id],
+  }),
+  policy: one(monetizationPolicies, {
+    fields: [campaignMonetizationPolicies.policyId],
+    references: [monetizationPolicies.id],
+  }),
+}))
+
+export const campaignRequirementsRelations = relations(campaignRequirements, ({ one }) => ({
+  campaign: one(campaigns, {
+    fields: [campaignRequirements.campaignId],
+    references: [campaigns.id],
+  }),
+}))
+
+export const creatorProfilesRelations = relations(creatorProfiles, ({ one, many }) => ({
+  user: one(users, {
+    fields: [creatorProfiles.userId],
+    references: [users.id],
+  }),
+  applications: many(campaignApplications),
+}))
+
+export const campaignApplicationsRelations = relations(campaignApplications, ({ one, many }) => ({
+  campaign: one(campaigns, {
+    fields: [campaignApplications.campaignId],
+    references: [campaigns.id],
+  }),
+  creator: one(creatorProfiles, {
+    fields: [campaignApplications.creatorId],
+    references: [creatorProfiles.id],
+  }),
+  metrics: many(campaignMetrics),
+}))
+
+export const campaignMetricsRelations = relations(campaignMetrics, ({ one }) => ({
+  campaign: one(campaigns, {
+    fields: [campaignMetrics.campaignId],
+    references: [campaigns.id],
+  }),
+  application: one(campaignApplications, {
+    fields: [campaignMetrics.applicationId],
+    references: [campaignApplications.id],
+  }),
 }))
 
 export const milestoneBonusRelations = relations(milestoneBonus, ({ one }) => ({
@@ -215,4 +232,4 @@ export const kolTierBonusRelations = relations(kolTierBonus, ({ one }) => ({
     fields: [kolTierBonus.policyId],
     references: [monetizationPolicies.id],
   }),
-})) 
+}))

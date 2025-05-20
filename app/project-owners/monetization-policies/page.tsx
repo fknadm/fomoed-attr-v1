@@ -14,7 +14,7 @@ export default async function MonetizationPoliciesPage() {
           </p>
         </div>
         <Link href="/project-owners/monetization-policies/create">
-          <Button>
+          <Button className="bg-gradient-to-r from-[#C85627] to-[#FF7A42] text-white hover:shadow-[0_0_20px_rgba(200,86,39,0.3)]">
             <PlusCircle className="mr-2 h-4 w-4" />
             Create New Policy
           </Button>

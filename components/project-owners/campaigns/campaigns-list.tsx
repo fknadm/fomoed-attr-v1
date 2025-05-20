@@ -21,11 +21,13 @@ interface Campaign {
     id: string
     name: string
   }
-  monetizationPolicy: {
-    id: string
-    name: string
-    baseRateMultiplier: string
-  } | null
+  monetizationPolicies: Array<{
+    policy: {
+      id: string
+      name: string
+      baseRateMultiplier: string
+    }
+  }>
   requirements: {
     minFollowers: number
     requiredPlatforms: string
@@ -58,7 +60,11 @@ async function getCampaigns() {
     with: {
       project: true,
       requirements: true,
-      monetizationPolicy: true,
+      monetizationPolicies: {
+        with: {
+          policy: true
+        }
+      },
       applications: {
         with: {
           creator: {
@@ -142,7 +148,7 @@ export async function CampaignsList() {
               metrics={metrics}
               platforms={platforms}
               applicationsCount={campaign.applications.length}
-              monetizationPolicy={campaign.monetizationPolicy}
+              monetizationPolicy={campaign.monetizationPolicies[0]?.policy || null}
             />
           )
         })}

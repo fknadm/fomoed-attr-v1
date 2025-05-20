@@ -16,7 +16,7 @@ const logRequest = (method: string, path: string, body?: any) => {
 
 // Response logger
 const logResponse = (status: number, data: any) => {
-  console.log(`📬 Response [${status}]:`, data)
+  console.log(`📬 Response [${status}]:`, JSON.stringify(data, null, 2))
 }
 
 export async function GET(request: Request) {
@@ -90,27 +90,30 @@ export async function GET(request: Request) {
         campaignIds: allCampaigns.map(c => c.id)
       })
 
-      return NextResponse.json(allCampaigns)
+      // Log the full response data
+      console.log('📦 Full campaign data:', JSON.stringify(allCampaigns, null, 2))
+
+      const response = NextResponse.json(allCampaigns)
+      logResponse(200, allCampaigns)
+      return response
     } catch (error) {
       logError('database operation', error)
-      return NextResponse.json(
-        { 
-          error: 'Database operation failed',
-          details: error instanceof Error ? error.message : 'Unknown error',
-          env: envCheck
-        },
-        { status: 500 }
-      )
+      const errorResponse = {
+        error: 'Database operation failed',
+        details: error instanceof Error ? error.message : 'Unknown error',
+        env: envCheck
+      }
+      logResponse(500, errorResponse)
+      return NextResponse.json(errorResponse, { status: 500 })
     }
   } catch (error) {
     logError('unexpected error', error)
-    return NextResponse.json(
-      { 
-        error: 'Internal server error',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    )
+    const errorResponse = {
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }
+    logResponse(500, errorResponse)
+    return NextResponse.json(errorResponse, { status: 500 })
   }
 }
 

@@ -53,16 +53,6 @@ async function main() {
         console.log('cpm_value column already exists');
       }
 
-      try {
-        await client.execute(`ALTER TABLE campaigns ADD COLUMN monetization_policy_id TEXT REFERENCES monetization_policies(id)`);
-        console.log('Added monetization_policy_id column');
-      } catch (error: any) {
-        if (!error.message.includes('duplicate column')) {
-          throw error;
-        }
-        console.log('monetization_policy_id column already exists');
-      }
-
       // Create monetization policies table
       await client.execute(`
         CREATE TABLE monetization_policies (
@@ -107,6 +97,50 @@ async function main() {
       console.log('✅ Migrations completed successfully');
     } else {
       console.log('✅ Monetization tables already exist');
+    }
+
+    // Check if campaign_monetization_policies table exists
+    const junctionResult = await client.execute(`
+      SELECT name FROM sqlite_master 
+      WHERE type='table' AND name='campaign_monetization_policies'
+    `);
+    
+    if (junctionResult.rows.length === 0) {
+      console.log('Creating campaign_monetization_policies table...');
+      
+      // Create campaign monetization policies junction table
+      await client.execute(`
+        CREATE TABLE campaign_monetization_policies (
+          id TEXT PRIMARY KEY NOT NULL,
+          campaign_id TEXT NOT NULL,
+          policy_id TEXT NOT NULL,
+          created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+          updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+          FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE,
+          FOREIGN KEY (policy_id) REFERENCES monetization_policies(id) ON DELETE CASCADE
+        )
+      `);
+      console.log('Created campaign_monetization_policies table');
+
+      // Create indexes for better query performance
+      await client.execute(`CREATE INDEX idx_campaign_monetization_policies_campaign_id ON campaign_monetization_policies(campaign_id);`);
+      await client.execute(`CREATE INDEX idx_campaign_monetization_policies_policy_id ON campaign_monetization_policies(policy_id);`);
+      console.log('Created indexes for campaign_monetization_policies table');
+
+      // Remove the old monetization_policy_id column from campaigns table
+      try {
+        await client.execute(`ALTER TABLE campaigns DROP COLUMN monetization_policy_id`);
+        console.log('Removed monetization_policy_id column from campaigns table');
+      } catch (error: any) {
+        if (!error.message.includes('no such column')) {
+          throw error;
+        }
+        console.log('monetization_policy_id column does not exist');
+      }
+
+      console.log('✅ Campaign monetization policies migration completed successfully');
+    } else {
+      console.log('✅ Campaign monetization policies table already exists');
     }
   } catch (error) {
     console.error('❌ Migration failed:', error);

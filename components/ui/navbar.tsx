@@ -39,7 +39,7 @@ export function Navbar() {
               href="/project-owners"
               className={cn(
                 "flex items-center text-sm font-medium transition-colors hover:text-[#C85627]",
-                pathname === "/project-owners"
+                pathname.startsWith("/project-owners")
                   ? "text-[#C85627]"
                   : "text-muted-foreground"
               )}
@@ -50,7 +50,7 @@ export function Navbar() {
               href="/creators"
               className={cn(
                 "flex items-center text-sm font-medium transition-colors hover:text-[#C85627]",
-                pathname === "/creators"
+                pathname.startsWith("/creators")
                   ? "text-[#C85627]"
                   : "text-muted-foreground"
               )}
@@ -105,7 +105,7 @@ export function Navbar() {
               href="/project-owners"
               className={cn(
                 "flex items-center text-sm font-medium transition-colors hover:text-[#C85627] py-2",
-                pathname === "/project-owners"
+                pathname.startsWith("/project-owners")
                   ? "text-[#C85627]"
                   : "text-muted-foreground"
               )}
@@ -117,7 +117,7 @@ export function Navbar() {
               href="/creators"
               className={cn(
                 "flex items-center text-sm font-medium transition-colors hover:text-[#C85627] py-2",
-                pathname === "/creators"
+                pathname.startsWith("/creators")
                   ? "text-[#C85627]"
                   : "text-muted-foreground"
               )}

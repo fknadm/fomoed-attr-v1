@@ -1,44 +1,23 @@
 import { NextResponse } from 'next/server'
-import { getDb } from '@/lib/db'
 
 export async function GET() {
-  try {
-    const db = getDb()
-    // TODO: Get the authenticated user's ID from the session
-    const userId = 'user_1' // Temporary for testing
-
-    const profile = await db.query.creatorProfiles.findFirst({
-      where: (profiles, { eq }) => eq(profiles.userId, userId),
-      with: {
-        user: true,
-        applications: {
-          with: {
-            campaign: {
-              with: {
-                project: true,
-              },
-            },
-            metrics: true,
-          },
-        },
-      },
-    })
-
-    if (!profile) {
-      return NextResponse.json(
-        { error: 'Creator profile not found' },
-        { status: 404 }
-      )
-    }
-    
-    return NextResponse.json(profile)
-  } catch (error) {
-    console.error('Error fetching creator profile:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch creator profile' },
-      { status: 500 }
-    )
-  }
+  // Hardcoded response for testing
+  return NextResponse.json({
+    id: 'creator_1',
+    userId: 'user_1',
+    bio: 'Web3 content creator and community builder',
+    twitterHandle: '@web3_creator',
+    twitterFollowers: 35000,
+    discordHandle: 'web3_creator#1234',
+    websiteUrl: 'https://web3-creator.io',
+    tier: 'GOLD',
+    user: {
+      id: 'user_1',
+      name: 'Web3 Creator',
+      email: 'creator@example.com',
+    },
+    applications: [],
+  })
 }
 
 export async function PUT(request: Request) {

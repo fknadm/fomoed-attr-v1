@@ -19,10 +19,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { CampaignSearch } from "./campaign-search"
 import { toast } from "sonner"
 
-// Define the form schema
-const policyFormSchema = createPolicyServerSchema;
-
-type FormData = z.infer<typeof policyFormSchema>;
+type FormData = z.infer<typeof createPolicyServerSchema>;
 
 interface Campaign {
   id: string;
@@ -50,7 +47,7 @@ export function CreateMonetizationPolicyForm({ campaigns = [], initialData, poli
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const form = useForm<FormData>({
-    resolver: zodResolver(policyFormSchema),
+    resolver: zodResolver(createPolicyServerSchema),
     defaultValues: initialData || defaultValues,
     mode: 'onChange',
   });
@@ -77,19 +74,23 @@ export function CreateMonetizationPolicyForm({ campaigns = [], initialData, poli
     setIsSubmitting(true);
     console.log('Client: Submitting policy data to server action:', data);
     try {
+      const transformedData = {
+        name: data.name,
+        baseRateMultiplier: data.baseRateMultiplier,
+        milestoneBonuses: data.milestoneBonuses?.map(bonus => ({
+          impressionGoal: bonus.impressionGoal,
+          bonusAmount: bonus.bonusAmount
+        })) || [],
+        kolTierBonuses: data.kolTierBonuses?.map(bonus => ({
+          tier: bonus.tier,
+          bonusPercentage: bonus.bonusPercentage
+        })) || [],
+        campaignIds: data.campaignIds
+      };
+
       const result = policyId
-        ? await updateMonetizationPolicyAction(policyId, {
-            ...data,
-            milestoneBonuses: data.milestoneBonuses || [],
-            kolTierBonuses: data.kolTierBonuses || [],
-            campaignIds: data.campaignIds || [],
-          })
-        : await createMonetizationPolicyAction({
-            ...data,
-            milestoneBonuses: data.milestoneBonuses || [],
-            kolTierBonuses: data.kolTierBonuses || [],
-            campaignIds: data.campaignIds || [],
-          });
+        ? await updateMonetizationPolicyAction(policyId, transformedData)
+        : await createMonetizationPolicyAction(transformedData);
       console.log('Client: Received result from server action:', result);
 
       if (result && typeof result === 'object' && 'success' in result) {
@@ -207,16 +208,22 @@ export function CreateMonetizationPolicyForm({ campaigns = [], initialData, poli
                   name={`milestoneBonuses.${index}.bonusAmount`}
                   render={({ field }) => (
                     <FormItem className="flex-1">
-                      <FormLabel>Bonus Amount ($)</FormLabel>
+                      <FormLabel>Bonus Amount</FormLabel>
                       <FormControl>
-                        <Input type="text" placeholder="e.g., 50.00" {...field} />
+                        <Input type="text" placeholder="e.g., 0.5" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <Button type="button" variant="ghost" size="icon" onClick={() => removeMilestone(index)}>
-                  <Trash2 className="h-4 w-4 text-red-500" />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => removeMilestone(index)}
+                  className="mb-2"
+                >
+                  <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
             ))}
@@ -227,7 +234,7 @@ export function CreateMonetizationPolicyForm({ campaigns = [], initialData, poli
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>KOL Tier Bonuses</CardTitle>
             <Button type="button" variant="outline" size="sm" onClick={onAddKolTier}>
-              <PlusCircle className="mr-2 h-4 w-4" /> Add Tier Bonus
+              <PlusCircle className="mr-2 h-4 w-4" /> Add Tier
             </Button>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -237,87 +244,107 @@ export function CreateMonetizationPolicyForm({ campaigns = [], initialData, poli
             {Array.isArray(kolTierFields) && kolTierFields.map((field, index) => (
               <div key={field.id} className="flex items-end gap-4 p-4 border rounded-md">
                 <FormField
-                    control={form.control}
-                    name={`kolTierBonuses.${index}.tier`}
-                    render={({ field: controllerField }) => (
-                        <FormItem className="flex-1">
-                        <FormLabel>KOL Tier</FormLabel>
-                        <Select onValueChange={controllerField.onChange} value={controllerField.value}>
-                            <FormControl>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select a tier" />
-                            </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                            <SelectItem value="BRONZE">Bronze</SelectItem>
-                            <SelectItem value="SILVER">Silver</SelectItem>
-                            <SelectItem value="GOLD">Gold</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                        </FormItem>
-                    )}
+                  control={form.control}
+                  name={`kolTierBonuses.${index}.tier`}
+                  render={({ field }) => (
+                    <FormItem className="flex-1">
+                      <FormLabel>Tier</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a tier" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="BRONZE">Bronze</SelectItem>
+                          <SelectItem value="SILVER">Silver</SelectItem>
+                          <SelectItem value="GOLD">Gold</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
                 <FormField
                   control={form.control}
                   name={`kolTierBonuses.${index}.bonusPercentage`}
                   render={({ field }) => (
                     <FormItem className="flex-1">
-                      <FormLabel>Bonus Percentage (%)</FormLabel>
+                      <FormLabel>Bonus Percentage</FormLabel>
                       <FormControl>
-                        <Input type="text" placeholder="e.g., 5 or 12.5" {...field} />
+                        <Input type="text" placeholder="e.g., 0.2" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <Button type="button" variant="ghost" size="icon" onClick={() => removeKolTier(index)}>
-                  <Trash2 className="h-4 w-4 text-red-500" />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => removeKolTier(index)}
+                  className="mb-2"
+                >
+                  <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
             ))}
           </CardContent>
         </Card>
 
-        {campaigns.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Link to Campaigns</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <FormField
-                control={form.control}
-                name="campaignIds"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <CampaignSearch
-                        campaigns={campaigns}
-                        selectedCampaignIds={field.value || []}
-                        onSelect={(campaignId) => {
-                          const currentValue = field.value || [];
-                          if (currentValue.includes(campaignId)) {
-                            field.onChange(currentValue.filter((id) => id !== campaignId));
-                          } else {
-                            field.onChange([...currentValue, campaignId]);
-                          }
-                        }}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
-        )}
+        <Card>
+          <CardHeader>
+            <CardTitle>Link Campaigns</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-[200px] rounded-md border p-4">
+              <div className="space-y-4">
+                {campaigns.map((campaign) => (
+                  <FormField
+                    key={campaign.id}
+                    control={form.control}
+                    name="campaignIds"
+                    render={({ field }) => {
+                      return (
+                        <FormItem
+                          key={campaign.id}
+                          className="flex flex-row items-start space-x-3 space-y-0"
+                        >
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value?.includes(campaign.id)}
+                              onCheckedChange={(checked) => {
+                                return checked
+                                  ? field.onChange([...field.value || [], campaign.id])
+                                  : field.onChange(
+                                      field.value?.filter(
+                                        (value) => value !== campaign.id
+                                      )
+                                    )
+                              }}
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
+                            <FormLabel>
+                              {campaign.name}
+                              <span className="ml-2 text-sm text-muted-foreground">
+                                ({campaign.status})
+                              </span>
+                            </FormLabel>
+                          </div>
+                        </FormItem>
+                      )
+                    }}
+                  />
+                ))}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
 
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={() => router.back()} disabled={isSubmitting}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isSubmitting || !form.formState.isValid && form.formState.isSubmitted}>
-            {isSubmitting ? 'Saving...' : 'Save Policy'}
+        <div className="flex justify-end">
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? 'Saving...' : policyId ? 'Update Policy' : 'Create Policy'}
           </Button>
         </div>
       </form>

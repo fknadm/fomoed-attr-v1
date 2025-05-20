@@ -2,11 +2,16 @@ import { GradientButton } from "@/components/ui/gradient-button"
 import Link from "next/link"
 
 async function getAvailableCampaigns() {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/campaigns?status=active`, {
+  const protocol = process.env.NODE_ENV === 'development' ? 'http' : 'https'
+  const host = process.env.VERCEL_URL || process.env.NEXT_PUBLIC_APP_URL || 'localhost:3000'
+  const baseUrl = `${protocol}://${host}`
+
+  const res = await fetch(`${baseUrl}/api/campaigns?status=active`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
     },
+    cache: 'no-store'
   })
 
   if (!res.ok) {
@@ -40,48 +45,54 @@ export async function AvailableCampaigns() {
             </p>
           </div>
         ) : (
-          campaigns.map((campaign: any) => (
-            <div
-              key={campaign.id}
-              className="flex items-center justify-between p-6"
-            >
-              <div>
-                <div className="flex items-center gap-4">
-                  <h3 className="font-semibold text-white">{campaign.name}</h3>
-                  <span className="rounded-full bg-green-500/10 px-2.5 py-0.5 text-xs font-medium text-green-500">
-                    Active
-                  </span>
-                </div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {campaign.description}
-                </p>
-                <div className="mt-2 flex items-center gap-4 text-sm text-muted-foreground">
-                  <span>Budget: ${campaign.budget.toLocaleString()}</span>
-                  <span>•</span>
-                  <span>Project: {campaign.project.name}</span>
-                  <span>•</span>
-                  <span>Min. Followers: {campaign.requirements.minFollowers.toLocaleString()}</span>
-                </div>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {campaign.requirements.requiredPlatforms.map((platform: string) => (
-                    <span
-                      key={platform}
-                      className="rounded-full bg-[#2A2625] px-2.5 py-0.5 text-xs font-medium text-white"
-                    >
-                      {platform}
+          campaigns.map((campaign: any) => {
+            const platforms = campaign.requirements?.requiredPlatforms 
+              ? JSON.parse(campaign.requirements.requiredPlatforms) as string[]
+              : []
+
+            return (
+              <div
+                key={campaign.id}
+                className="flex items-center justify-between p-6"
+              >
+                <div>
+                  <div className="flex items-center gap-4">
+                    <h3 className="font-semibold text-white">{campaign.name}</h3>
+                    <span className="rounded-full bg-green-500/10 px-2.5 py-0.5 text-xs font-medium text-green-500">
+                      Active
                     </span>
-                  ))}
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {campaign.description}
+                  </p>
+                  <div className="mt-2 flex items-center gap-4 text-sm text-muted-foreground">
+                    <span>Budget: ${campaign.budget.toLocaleString()}</span>
+                    <span>•</span>
+                    <span>Project: {campaign.project.name}</span>
+                    <span>•</span>
+                    <span>Min. Followers: {campaign.requirements?.minFollowers?.toLocaleString() || 0}</span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {platforms.map((platform: string) => (
+                      <span
+                        key={platform}
+                        className="rounded-full bg-[#2A2625] px-2.5 py-0.5 text-xs font-medium text-white"
+                      >
+                        {platform}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="ml-4">
+                  <Link href={`/creators/campaigns/${campaign.id}/apply`}>
+                    <GradientButton>
+                      Apply Now
+                    </GradientButton>
+                  </Link>
                 </div>
               </div>
-              <div className="ml-4">
-                <Link href={`/creators/campaigns/${campaign.id}/apply`}>
-                  <GradientButton>
-                    Apply Now
-                  </GradientButton>
-                </Link>
-              </div>
-            </div>
-          ))
+            )
+          })
         )}
       </div>
     </div>

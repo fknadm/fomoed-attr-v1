@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
-import { campaigns } from '@/db/schema'
+import { campaigns, campaignMetrics, campaignApplications, campaignRequirements, campaignMonetizationPolicies } from '@/db/schema'
 import { eq } from 'drizzle-orm'
+import { logError } from '@/lib/logger'
 
 // Logger middleware
 const logRequest = async (req: NextRequest) => {
@@ -19,18 +20,26 @@ const validateCampaignId = (id: string): boolean => {
 }
 
 export async function GET(
-  req: NextRequest,
+  request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
     const db = getDb()
-    const { id } = params
-    
     const campaign = await db.query.campaigns.findFirst({
-      where: (campaigns, { eq }) => eq(campaigns.id, id),
+      where: (campaigns, { eq }) => eq(campaigns.id, params.id),
       with: {
         project: true,
         requirements: true,
+        monetizationPolicies: {
+          with: {
+            policy: {
+              with: {
+                milestoneBonus: true,
+                kolTierBonus: true,
+              },
+            },
+          },
+        },
         applications: {
           with: {
             creator: {
@@ -43,19 +52,17 @@ export async function GET(
         },
       },
     })
-    
+
     if (!campaign) {
-      logResponse(404, { error: 'Campaign not found' })
       return NextResponse.json(
         { error: 'Campaign not found' },
         { status: 404 }
       )
     }
-    
-    logResponse(200, campaign)
+
     return NextResponse.json(campaign)
   } catch (error) {
-    console.error('Error fetching campaign:', error)
+    logError('campaign fetch', error)
     return NextResponse.json(
       { error: 'Failed to fetch campaign' },
       { status: 500 }
@@ -63,33 +70,47 @@ export async function GET(
   }
 }
 
-export async function PUT(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> | { id: string } }
+export async function PATCH(
+  request: Request,
+  { params }: { params: { id: string } }
 ) {
   try {
-    const params = await context.params
-    const { id } = params
-    const body = await request.json()
+    const data = await request.json()
     const db = getDb()
-    
-    await db.update(campaigns)
+
+    // Update campaign
+    const [updatedCampaign] = await db
+      .update(campaigns)
       .set({
-        name: body.name,
-        description: body.description,
-        budget: body.budget,
-        startDate: new Date(body.startDate),
-        endDate: new Date(body.endDate),
-        status: body.status,
+        ...data,
         updatedAt: new Date(),
       })
-      .where(eq(campaigns.id, id))
+      .where(eq(campaigns.id, params.id))
+      .returning()
 
+    if (!updatedCampaign) {
+      return NextResponse.json(
+        { error: 'Campaign not found' },
+        { status: 404 }
+      )
+    }
+
+    // Fetch the complete campaign with all relations
     const campaign = await db.query.campaigns.findFirst({
-      where: (campaigns, { eq }) => eq(campaigns.id, id),
+      where: (campaigns, { eq }) => eq(campaigns.id, params.id),
       with: {
         project: true,
         requirements: true,
+        monetizationPolicies: {
+          with: {
+            policy: {
+              with: {
+                milestoneBonus: true,
+                kolTierBonus: true,
+              },
+            },
+          },
+        },
         applications: {
           with: {
             creator: {
@@ -102,11 +123,10 @@ export async function PUT(
         },
       },
     })
-    
-    logResponse(200, campaign)
+
     return NextResponse.json(campaign)
   } catch (error) {
-    console.error('Error updating campaign:', error)
+    logError('campaign update', error)
     return NextResponse.json(
       { error: 'Failed to update campaign' },
       { status: 500 }
@@ -115,21 +135,26 @@ export async function PUT(
 }
 
 export async function DELETE(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> | { id: string } }
+  request: Request,
+  { params }: { params: { id: string } }
 ) {
   try {
-    const params = await context.params
-    const { id } = params
     const db = getDb()
-    
-    await db.delete(campaigns)
-      .where(eq(campaigns.id, id))
-    
-    logResponse(200, { message: 'Campaign deleted successfully' })
-    return new NextResponse(null, { status: 204 })
+    const [deletedCampaign] = await db
+      .delete(campaigns)
+      .where(eq(campaigns.id, params.id))
+      .returning()
+
+    if (!deletedCampaign) {
+      return NextResponse.json(
+        { error: 'Campaign not found' },
+        { status: 404 }
+      )
+    }
+
+    return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Error deleting campaign:', error)
+    logError('campaign deletion', error)
     return NextResponse.json(
       { error: 'Failed to delete campaign' },
       { status: 500 }

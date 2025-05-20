@@ -1,4 +1,5 @@
 import { Navbar } from "@/components/ui/navbar"
+import { CreatorSidebar } from "@/components/creators/sidebar"
 
 export default function CreatorsLayout({
   children,
@@ -8,7 +9,10 @@ export default function CreatorsLayout({
   return (
     <div className="min-h-screen bg-[#0A0A0A]">
       <Navbar />
-      {children}
+      <div className="flex">
+        <CreatorSidebar />
+        <main className="flex-1 p-6">{children}</main>
+      </div>
     </div>
   )
 } 
